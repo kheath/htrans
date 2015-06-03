@@ -19,7 +19,7 @@ This is a shell script that converts fasta files to phylip format.
 
 ### Authors & Contributors
 
-All hail the invisible pink unicorn
+John Snow knows nothing.
 
 ### Support or Contact
 
