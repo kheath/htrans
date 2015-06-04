@@ -16,7 +16,7 @@ def main(argv):
 
     tree = readTree(argv[0])
     
-    family = [1, -1, 1, 1, -1, -1, 0, 0, 0, 0, 0]
+    family = (1, -1, 1, 1, -1, -1, 0, 0, 0, 0, 0)
 
     print mrca(tree, family)
 
