@@ -17,6 +17,10 @@ fasta format.
 This is a shell script that converts fasta files to phylip format.
 
 
+### mrca.py
+
+mrca(tree, family) returns the most recent common ancestor for a given gene family.
+
 ### Authors & Contributors
 
 John Snow knows nothing.
