@@ -29,14 +29,24 @@ def dupDel(tree, famT, delCost, dupCost, currentcopynum):
 
     else:  # This is a subtree
       r1 = dupDel(tree[1], famT, delCost, dupCost, currentcopynum)
+
+
+
+
+
       r2 = dupDel(tree[2], famT, delCost, dupCost, currentcopynum)
 
 
 def getCounts(tree, famT):
 
     leaves = descendantNodes(tree[0], tree)
-    counts = [num for num in ]
+    counts = 
       
+def idk(tree, famT, delCost, dupCost, distance):
+    leaves = descendantNodes(tree[0], tree)
+
+    for i in range(min(leaves), max(leaves)):
+
 
 
 
