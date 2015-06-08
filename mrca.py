@@ -16,7 +16,7 @@ def main(argv):
 
     tree = readTree(argv[0])
     
-    family = (1, -1, 1, 1, -1, -1, 0, 0, 0, 0, 0)
+    
 
     print mrca(tree, family)
 
@@ -43,8 +43,8 @@ def mrca(tree, family):
     """
     
     if tree[1] == () and tree[2] == ():
-      # print 'Found tip #'+str(tree[0])+'\t'+str([family[tree[0]], tree[0]])
-      if family[tree[0]] == -1:
+      #print 'Found tip #'+str(tree[0])+'\t'+str([family[tree[0]], tree[0]])
+      if family[tree[0]] == 0:
         return -1
       else:
         return tree[0]
@@ -52,19 +52,19 @@ def mrca(tree, family):
       r1 = mrca(tree[1], family)
       r2 = mrca(tree[2], family)
 
-      # print 'Comparing r1 = '+str(r1)+' and r2 = '+str(r2)
+      #print 'Comparing r1 = '+str(r1)+' and r2 = '+str(r2)
 
       if r1 == -1 and r2 == -1:
-        # print 'Returning '+str(-1)
+        #print 'Returning '+str(-1)
         return -1
       elif r1 >= 0 and r2 >= 0:
-        # print 'Returning '+str(tree[0])
+        #print 'Returning '+str(tree[0])
         return tree[0]
       elif r1 >= 0:
-        # print 'Returning '+str(r1)
+        #print 'Returning '+str(r1)
         return r1
       else:
-        # print 'Returning '+str(r2)
+        #print 'Returning '+str(r2)
         return r2
 
 
