@@ -11,9 +11,11 @@
 
 class Group:
 
-    def __init__(self, node, families):
+    def __init__(self, node, families, deletions, duplications):
         self.origin = node
         self.families = families
+        self.deletions = deletions
+        self.duplications = duplications
 
     def size(self):
         return len(self.families)
@@ -25,8 +27,7 @@ class Group:
         return self.families
 
     def addFamily(self, family):
-        if isinstance(family, list):
-            self.families.append(family)
+        self.families.append(family)
 
     def setOrigin(self, node):
         self.origin = node
