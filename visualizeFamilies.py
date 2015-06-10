@@ -42,6 +42,8 @@ def main(argv):
     ax.set_xticks(np.arange(data.shape[0])+0.5, minor=False)
     ax.set_yticks(np.arange(data.shape[1])+0.5, minor=False)
 
+    cbar = plt.colorbar(heatmap)
+    
     # want a more natural, table-like display
     ax.invert_yaxis()
     ax.xaxis.tick_top()
@@ -98,14 +100,22 @@ def evaluate(familyData):
         # if familyData[x][0] == familyData[y][0]:
         #     heat[x,y] = 1.0
         # elif familyData[x]
-        diff = len(set(familyData[x][1][1]).symmetric_difference(familyData[y][1][1]))+len(set(familyData[x][1][2]).symmetric_difference(familyData[y][1][2]))
-
+        # diff = len(set(familyData[x][1][1]).symmetric_difference(familyData[y][1][1]))+len(set(familyData[x][1][2]).symmetric_difference(familyData[y][1][2]))
+        diff = calcDiff(familyData[x][1][1], familyData[y][1][1], 6) + calcDiff(familyData[x][1][2], familyData[y][1][2], 6)
         # if familyData[x][1][1] != [] and familyData[y][1][1] != [] and familyData[x][1][2] != [] and familyData[y][1][2] != []:
         heat[x,y] = 1.0/(diff+1.0)
+        if familyData[x][0] == familyData[y][0]:
+            heat[x,y] += 1.0
         
         
     return heat, row_labels, column_labels
 
+def calcDiff(l1, l2, n):
+    # Calculate the difference in the number of times each node appears in two list
+    diff = 0
+    for i in range(0,2*n-1):
+        diff += abs(l1.count(i)-l2.count(i))
+    return diff
 
 
 
