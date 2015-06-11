@@ -21,6 +21,7 @@ def main(argv):
 
     data, row_labels, column_labels = evaluate(familyData)
     
+    
     # x,y = makeXY(familyData)
 
     # plt.plot(x, y, 'ro')
@@ -36,20 +37,20 @@ def main(argv):
     # plt.show()
 
     fig, ax = plt.subplots()
-    heatmap = ax.pcolor(data, cmap=plt.cm.Blues)
+    heatmap = ax.pcolor(data, cmap=plt.cm.Blues)#, edgecolors='k')
 
     # put the major ticks at the middle of each cell
     ax.set_xticks(np.arange(data.shape[0])+0.5, minor=False)
     ax.set_yticks(np.arange(data.shape[1])+0.5, minor=False)
 
     cbar = plt.colorbar(heatmap)
-    
+
     # want a more natural, table-like display
     ax.invert_yaxis()
     ax.xaxis.tick_top()
 
-    ax.set_xticklabels(row_labels, minor=False)
-    ax.set_yticklabels(column_labels, minor=False)
+    ax.set_xticklabels([''], minor=False, fontsize=6)
+    ax.set_yticklabels([''], minor=False, fontsize=6)
     
     plt.savefig('heatmap.png', bbox_inches='tight')
     plt.close(fig)
@@ -87,6 +88,13 @@ def readFamilies(filename):
 #             y.append(len(family[1][1])+len(family[1][2]))
 
 #     return (x,y)
+
+def combineFamilies(familyData):
+    numFamilies = len(familyData)
+
+    for row in range(0, numFamilies):
+        for column in range(0, numFamilies)
+
 
 def evaluate(familyData):
     column_labels = [str(family[0]) for family in familyData]
