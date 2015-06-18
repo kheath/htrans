@@ -12,16 +12,37 @@ import sys, matplotlib.pyplot as plt
 import io, ast, math
 import numpy as np
 from collections import Counter
-
+from itertools import *
+from group import Group
+from copy import deepcopy
 
 
 def main(argv):
 
     familyData = readFamilies(argv[0])
+    # print familyData
 
-    data, row_labels, column_labels = evaluate(familyData)
+    uData = uniq(familyData)
+
+    print 'Original length = ', len(familyData)
+    print 'Uniqued length = ', len(uData)
+
+    data, row_labels, column_labels = evaluate(uData, 1.0, 2.0)
     
+    # gs = initializeGroups(familyData)
+    # for key, value in gs.iteritems():
+        # print key, ' : ', value.getFamilies(), '--', value.getDuplications(), '--', value.getDeletions()
+
+
+    idstuff = idGroups(familyData, data, 1.0)
+
+    for key, value in idstuff.iteritems():
+        if len(value.getFamilies()) > 1:
+            print key, ' : ', value.getFamilies(), '--', value.getDuplications(), '--', value.getDeletions()
+            print ''
+
     
+
     # x,y = makeXY(familyData)
 
     # plt.plot(x, y, 'ro')
@@ -65,14 +86,17 @@ def readFamilies(filename):
     families = []
 
     with open(filename, 'r') as f:
+        famNum = 1
         while True:
             line = f.readline()
 
             if not line:
                 break
-            temp = ast.literal_eval(line)
+            temp = list(ast.literal_eval(line))
             if temp[1][1] != [] or temp[1][2] != []:
+                temp.append(famNum)
                 families.append(temp)
+            famNum+=1
 
     return families
 
@@ -89,14 +113,67 @@ def readFamilies(filename):
 
 #     return (x,y)
 
-def combineFamilies(familyData):
-    numFamilies = len(familyData)
+# def something(heatmap, familyData):
+#     for x in range(0, heatmap.shape):
+#         for y in range(x+1, heatmap.shape):
 
-    for row in range(0, numFamilies):
-        for column in range(0, numFamilies)
+def initializeGroups(familyData):
+    '''Make every family into a group'''
+
+    groups = {}
+
+    for index, family in enumerate(familyData):
+        groups[index] = Group(family, 6)
+
+    return groups
 
 
-def evaluate(familyData):
+
+
+
+def idGroups(familyData, heatmap, cutoff):
+    '''Merge families into groups based on a cutoff'''
+
+    groups = []
+    bigG = {}
+    newMap = deepcopy(heatmap)
+
+    for x in range(0, len(familyData)):
+        for y in range(x+1, len(familyData)):
+            if newMap[x,y] >= cutoff:
+                groups.append((x,y))
+
+    print 'List of groups: '
+    print groups
+
+    count = 0
+    while len(groups) > 0:
+
+        commonSp = [item for item in groups if count in item]
+        if len(commonSp) > 0:
+            flat = uniq(list(sum(commonSp,())))
+            print 'Merging families: ', flat
+            bigG[count] = Group(familyData[flat[0]], 6)
+            
+            if len(flat[1:]) > 0:
+                for i in range(1, len(flat)):
+                    bigG[count].addFamily(familyData[flat[i]])
+            temp = len(groups)
+            for num in flat:
+                for tup in groups:
+                    if num in tup:
+                        groups.remove(tup)
+                # groups.remove(tup)
+            print 'Removed ', temp-len(groups), ' tuples' 
+        count += 1
+
+    return bigG
+
+
+
+def evaluate(familyData, cut, maxVal):
+    '''Creates a heatmap of familyData vs familyData'''
+
     column_labels = [str(family[0]) for family in familyData]
     row_labels = column_labels
 
@@ -114,6 +191,9 @@ def evaluate(familyData):
         heat[x,y] = 1.0/(diff+1.0)
         if familyData[x][0] == familyData[y][0]:
             heat[x,y] += 1.0
+
+        if heat[x,y] >= cut:
+            heat[x,y] = maxVal
         
         
     return heat, row_labels, column_labels
@@ -125,6 +205,17 @@ def calcDiff(l1, l2, n):
         diff += abs(l1.count(i)-l2.count(i))
     return diff
 
+def uniq(input):
+  output = []
+  for x in input:
+    if x not in output:
+      output.append(x)
+  return output
+
+def unique(seq):
+    seen = set()
+    seen_add = seen.add
+    return [ x for x in seq if not (x in seen or seen_add(x))]
 
 
 if __name__ == "__main__":

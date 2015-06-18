@@ -8,88 +8,135 @@
 
     'I like trains'
 """
-import copy import deepcopy
+from copy import deepcopy
+from collections import Counter
 
 class Group:
 
-    def __init__(self, node, family, familyName, numSpecies):
-        self.origin = node
+    def __init__(self, family, numSpecies):
+        self.mrcag = family[0]
         self.families = [family]
         self.numSpecies = numSpecies
         self.deletions = []
         self.duplications = []
 
-        mergeFamily(family, familyName)
+        initData()
+
+        self.mergeFamily(family)
         
 
 
-    def size(self):
+    def getSize(self):
         return len(self.families)
 
-    def origin(self):
-        return self.origin
+    def getMrcag(self):
+        return self.mrcag
 
-    def families(self):
+    def getFamilies(self):
         return self.families
 
-    def deletitions(self):
+    def getDeletions(self):
         return self.deletions
 
-    def duplications(self):
+    def getDuplications(self):
         return self.duplications
 
     def addFamily(self, family):
         self.families.append(family)
+        self.mergeFamily(family)
 
-    def setOrigin(self, node):
-        self.origin = node
+    def setMrcag(self, node):
+        self.mrcag = node
 
-    def mergeFamily(self, family, familyNum):
-        ''' Gene history dictionary:
-        Duplications = [[[value,[families]], [value, [families]]], [families], families] where each index
-        represents a node '''
+    def initData(self):
+
+        # Initialze self.duplications and self.deletions if they're empty.  They should have an empty
+        # List for every node in the tree
 
         if self.duplications == [] and self.deletions == []:
             for i in range(0,2*self.numSpecies-1):
-                self.duplications[].append([])
-                self.deletions[].append([])
+                self.duplications.append([])
+                self.deletions.append([])
+
+    def mergeFamily(self, family):
+        ''' Gene history dictionary:
+        Duplications = [[[value,[families]], [value, [families]]], [families], families] where each index
+        represents a node.  This way we get node -- number of dups/del -- family number '''
+
 
         dups = family[1][1]
         dels = family[1][2]
-
-        if familyNum in self.families:
-            return False
+        familyNum = family[2]
 
         # Add events to duplications structure
         dupsD = Counter(dups)
         for key, value in dupsD.iteritems():
             isCoEvent = False
             for event in self.duplications[key]:
-                if event[0] == value:
-                    isCoEvent = True
-                    if familyNum not in event[1]:
-                        self.duplications[key][1].append(familyNum)
+                if len(event) > 0:
+                    if event[0] == value:
+                        isCoEvent = True
+                        if familyNum not in event[1]:
+                            event[1].append(familyNum)
+                            break
             if not isCoEvent:
-                self.duplications[key].append([value, familyNum])
+                self.duplications[key].append([value, [familyNum]])
 
         # Add events to deletions structure
         delsD = Counter(dels)
         for key, value in delsD.iteritems():
             isCoEvent = False
             for event in self.deletions[key]:
-                if event[0] == value:
-                    isCoEvent = True
-                    if familyNum not in event[1]:
-                        self.deletions[key][1].append(familyNum)
+                if len(event) > 0:
+                    if event[0] == value:
+                        isCoEvent = True
+                        if familyNum not in event[1]:
+                            event[1].append(familyNum)
             if not isCoEvent:
-                self.deletions[key].append([value, familyNum])
+                self.deletions[key].append([value, [familyNum]])
 
 
     def mergeGroups(self, group):
-        if self.origin != group.origin():
+        '''Merges two groups with 1 or more families each together.
+        This should currently fail if they have the same origin.'''
+
+        # Check if both groups have the same origin
+        if self.mrcag != group.getMrcag():
             return False
-        self.families = list(set(self.families)|set(deepcopy(group.families())))
-        
+
+        # Combine the two lists of families
+        self.families = list(set(self.families)|set(deepcopy(group.getFamilies())))
+
+        # Merge duplications
+        newDups = group.getDuplications()
+        for nodeNum, node in enumerate(newDups):           
+            for eventNum, event in enumerate(node):
+                mergeFound = False
+                for a, b in enumerate(self.duplications[nodeNum]):
+                    if event[0] == b[a][0]:
+                        self.duplications[nodeNum][a][1] = list(set(self.duplications[nodeNum][eventNum][1]) 
+                                                                |set(deepcopy(event[1])))
+                        mergeFound = True
+                        break
+                if not mergeFound:
+                    self.duplications[nodeNum].append(event)
+
+        # Merge deletions
+        newDels = group.getDeletions()
+        for nodeNum, node in enumerate(newDels):
+            for eventNum, event in enumerate(node):
+                mergeFound = False
+                for a,b in enumerate(self.deletions[nodeNum]):
+                    if event[0] == b[a][0]:
+                        self.deletions[nodeNum][a][1] = list(set(self.deletions[nodeNum][eventNum][1]) 
+                                                                |set(deepcopy(event[1])))
+                        mergeFound = True
+                        break
+                if not mergeFound:
+                    self.deletions[nodeNum].append(event)
+
+        return True
+
 
 
 
