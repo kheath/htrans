@@ -15,7 +15,7 @@ class Group:
 
     def __init__(self, family, numSpecies):
         self.mrcag = family[0]
-        self.families = [family]
+        self.families = [family]            # Need to retain order
         self.numSpecies = numSpecies
         self.deletions = []
         self.duplications = []
@@ -105,7 +105,7 @@ class Group:
             return False
 
         # Combine the two lists of families
-        self.families = list(set(self.families)|set(deepcopy(group.getFamilies())))
+        self.families = self.families+deepcopy(group.getFamilies())
 
         # Merge duplications
         newDups = group.getDuplications()

@@ -205,6 +205,8 @@ def calcDiff(l1, l2, n):
         diff += abs(l1.count(i)-l2.count(i))
     return diff
 
+    # Sum of unique events / total number of events
+
 def uniq(input):
   output = []
   for x in input:
