@@ -1,0 +1,3 @@
+
+
+def pullGeneNum(famN,speciesN):
