@@ -15,7 +15,7 @@ class Group:
 
     def __init__(self, family, numSpecies):
         self.mrcag = family[0]
-        self.families = [family]            # Need to retain order
+        self.families = [family]            # List of family number that retain order
         self.numSpecies = numSpecies
         self.deletions = []
         self.duplications = []
@@ -96,16 +96,16 @@ class Group:
                 self.deletions[key].append([value, [familyNum]])
 
 
-    def mergeGroups(self, group):
+    def mergeGroups(self, group, famOrder):
         '''Merges two groups with 1 or more families each together.
         This should currently fail if they have the same origin.'''
 
         # Check if both groups have the same origin
-        if self.mrcag != group.getMrcag():
-            return False
+        # if self.mrcag != group.getMrcag():
+        #     return False
 
-        # Combine the two lists of families
-        self.families = self.families+deepcopy(group.getFamilies())
+        # Takes in given family order - need to figure this out outside the class
+        self.families = famOrder
 
         # Merge duplications
         newDups = group.getDuplications()

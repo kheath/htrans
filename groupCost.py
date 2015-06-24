@@ -1,3 +1,5 @@
+
+
 import group
 
 def groupCost(groupA, groupB, tree, adjInfo):
@@ -18,4 +20,6 @@ def groupCost(groupA, groupB, tree, adjInfo):
 
 
 def mergeLists(order, l1, l2):
+    '''Merge l1 and l2 in the correct order based on the pairs in groupCost'''
+
     return {0: l2.reverse()+l1, 1: l1+l2, 2: l2+l1, 3: l1+l2.reverse()}[order]
