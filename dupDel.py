@@ -21,7 +21,8 @@ def main(argv):
     print result
 
 def dupDel(tree, famT, delCost, dupCost, currentcopynum,memo):
-    '''Calculate the minimal cost of duplication and deletion that could happen and the sequences of duplication and deletion events that correspond to that minimal cost.'''
+    '''Calculate the minimal cost of duplication and deletion that could happen and the sequences of 
+    duplication and deletion events that correspond to that minimal cost.'''
 
     if tree[1] == ():
         return (0,[],[]) #base case, we get to a leaf.
@@ -88,6 +89,40 @@ def dupDel(tree, famT, delCost, dupCost, currentcopynum,memo):
         memo[(currentcopynum,tree)]=(minLeftCost+minRightCost,realLeftDelList+realRightDelList,realLeftDupList+realRightDupList) #memoize calculated result
         return (minLeftCost+minRightCost,realLeftDelList+realRightDelList,realLeftDupList+realRightDupList)
  
+def calcSubCost(tree, famT, delCost, dupCost, currentcopynum,memo):
+
+    leaves=descendantFam(tree[0],tree,famT) #find all the possible family copy numbers of leaves under the left subtree.
+    minCost=float('inf') #this variable stores the minimal cost, initially set to infinity.
+    fullDelList = []
+    fullDupList = []
+
+    for i in range(min(leaves),max(leaves)+1): #loop over all possible copy numbers.
+            subTree=dupDel(tree,famT,delCost,dupCost,i,memo) #recursion step.
+            subCost=subTree[0]
+            delList=subTree[1]
+            dupList=subTree[2]
+
+            if i >= currentcopynum: #calculate the cost of this particular copy number i.
+                subCost=(i-currentcopynum)*dupCost+subCost                
+            else:
+                subCost=(currentcopynum-i)*delCost+subCost
+                
+            if subCost<minCost: #if this cost is lower than current minimum, this result should be stored and replace current minimum.
+                minCost = subCost
+                fullDelList=delList #stores the duplication and deletion lists of lower level operations.
+                fullDupList=dupList
+                if i > currentcopynum: #find the required duplication or deletion events on this level.
+                    fullDelList.extend([tree[0]]*(i-currentcopynum))
+                    # delAction=[]
+                elif i < currentcopynum:
+                    # dupAction=[]
+                    fullDelList.extend([tree[0]]*(currentcopynum-i))
+                else:
+                    # delAction=[]
+                    # dupAction=[]
+        return minCost, fullDelList, fullDupList
+
+
       
 def find(node, Tree):
     ''' Returns True if node is in the Tree and False otherwise. '''
