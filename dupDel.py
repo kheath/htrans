@@ -6,20 +6,65 @@
   Duplication/Deletion (dupDel)
 """
 
-import mrca,sys
+import mrca, sys, ast, argparse
 from functools import wraps
 
 def main(argv):
     '''Do stuff'''
-    famT=(7,3,0,104,0,2)
-    tree=mrca.readTree(argv[0]) 
-    delCost= 3  #int(argv[1]) #user input of deletion cost.
-    dupCost= 5  #int(argv[2]) #user input of duplication cost.
-    currentcopynum= 1 #int(argv[3]) #user input of initial copy numbers. Normally, 1 should be inputted.
-    mrcaA = mrca.mrca(tree, famT) #find the most recent common ancestor (mrca).
-    subtreeA = subtree(mrcaA, tree) #find the subtree which has the mrca as its root.
-    result=dupDel(subtreeA,famT,delCost,dupCost,currentcopynum) #store the dupDel result.
-    print result
+    # famT=(7,3,0,104,0,2)
+    # tree=mrca.readTree(argv[0]) 
+    # delCost= 3  #int(argv[1]) #user input of deletion cost.
+    # dupCost= 5  #int(argv[2]) #user input of duplication cost.
+    # currentcopynum= 1 #int(argv[3]) #user input of initial copy numbers. Normally, 1 should be inputted.
+    # mrcaA = mrca.mrca(tree, famT) #find the most recent common ancestor (mrca).
+    # subtreeA = subtree(mrcaA, tree) #find the subtree which has the mrca as its root.
+    # result=dupDel(subtreeA,famT,delCost,dupCost,currentcopynum) #store the dupDel result.
+    # print result
+
+
+    parser = argparse.ArgumentParser()
+    requiredNamed = parser.add_argument_group('required named arguments')
+    requiredNamed.add_argument('-t', '--tree', help='Tree file name (testATree.txt)', required=True)
+    requiredNamed.add_argument('-f', '--fams', help='File with family tuple (famInfoResult.txt)', required=True)
+    requiredNamed.add_argument('-d', help='Deletion cost', type=int, required=True)
+    requiredNamed.add_argument('-c', help='Duplication cost', type=int, required=True)
+    # requiredNamed.add_argument('-p', help='Partition file name', required=True)  
+    parser.add_argument('-v', '--verbose', help='Increase output verbosity', action='store_true')
+    parser.add_argument('-n', help='Initial copy number of genes at the mrca', type=int, required=False, default=1)
+    args = parser.parse_args()
+    
+    verbose = args.verbose
+
+
+    fullTree = mrca.readTree(args.tree)
+
+    famInfo = readFamInfo(args.fams) #Tuple of family tuples
+    results=[]
+    it = iter(famInfo)
+    while True:
+        try:
+            fam = it.next()
+        except:
+            break
+        mrcaF = mrca.mrca(fullTree, fam)
+        sub = subtree(mrcaF, fullTree)
+        results.append((mrcaF, dupDel(sub, fam, args.d, args.c, args.n)))
+
+    with open('dupDelAll.txt', 'w+') as f:
+        for family in results:
+            f.write(str(family)+'\n')
+
+
+def readFamInfo(infile):
+    '''Read in the famInfoResult.txt'''
+    with open(infile, 'r') as f:
+        line = ast.literal_eval(f.readline())
+        if type(line) == tuple:
+            return line[1:]
+        else:
+            print 'Error reading in family info'
+            return False
+
 
 def memoize(func):
     cache = {}
@@ -46,66 +91,6 @@ def dupDel(tree, famT, delCost, dupCost, currentcopynum):
 
         return (lcost+rcost, lDels+rDels, lDups+rDups)
 
-        # leftLeaves=descendantFam(tree[1][0],tree,famT) #find all the possible family copy numbers of leaves under the left subtree.
-        # minLeftCost=float('inf') #this variable stores the minimal cost, initially set to infinity.
-        
-        # for i in range(min(leftLeaves),max(leftLeaves)+1): #loop over all possible copy numbers.
-        #     leftSub=dupDel(tree[1],famT,delCost,dupCost,i,memo) #recursion step.
-        #     leftSubCost=leftSub[0]
-        #     leftDelList=leftSub[1]
-        #     leftDupList=leftSub[2]
-
-        #     if i >= currentcopynum: #calculate the cost of this particular copy number i.
-        #         leftCost=(i-currentcopynum)*dupCost+leftSubCost                
-        #     else:
-        #         leftCost=(currentcopynum-i)*delCost+leftSubCost
-                
-        #     if leftCost<minLeftCost: #if this cost is lower than current minimum, this result should be stored and replace current minimum.
-        #         minLeftCost=leftCost
-        #         realLeftDelList=leftDelList #stores the duplication and deletion lists of lower level operations.
-        #         realLeftDupList=leftDupList
-        #         if i > currentcopynum: #find the required duplication or deletion events on this level.
-        #             leftDupAction=[tree[1][0]]*(i-currentcopynum)
-        #             leftDelAction=[]
-        #         elif i < currentcopynum:
-        #             leftDupAction=[]
-        #             leftDelAction=[tree[1][0]]*(currentcopynum-i)
-        #         else:
-        #             leftDelAction=[]
-        #             leftDupAction=[]
-        # realLeftDelList+=leftDelAction #add the list of previous events and events on this level together
-        # realLeftDupList+=leftDupAction
-
-        # rightLeaves=descendantFam(tree[2][0],tree,famT) #repeat the first half codes on the right tree
-        # minRightCost=float('inf')
-        # for i in range(min(rightLeaves),max(rightLeaves)+1):
-            
-        #     rightSub=dupDel(tree[2],famT,delCost,dupCost,i,memo)
-        #     rightSubCost=rightSub[0]
-        #     rightDelList=rightSub[1]
-        #     rightDupList=rightSub[2]
-        #     if i >= currentcopynum:
-        #         rightCost=(i-currentcopynum)*dupCost+rightSubCost
-        #     else:
-        #         rightCost=(currentcopynum-i)*delCost+rightSubCost
-        #     if rightCost<minRightCost:
-        #         minRightCost=rightCost
-        #         realRightDelList=rightDelList
-        #         realRightDupList=rightDupList
-        #         if i > currentcopynum:
-        #             rightDupAction=[tree[2][0]]*(i-currentcopynum)
-        #             rightDelAction=[]
-        #         elif i < currentcopynum:
-        #             rightDupAction=[]
-        #             rightDelAction=[tree[2][0]]*(currentcopynum-i)
-        #         else:
-        #             rightDelAction=[]
-        #             rightDupAction=[]
-        # realRightDelList+=rightDelAction
-        # realRightDupList+=rightDupAction
-
-        # memo[(currentcopynum,tree)]=(minLeftCost+minRightCost,realLeftDelList+realRightDelList,realLeftDupList+realRightDupList) #memoize calculated result
-        # return (minLeftCost+minRightCost,realLeftDelList+realRightDelList,realLeftDupList+realRightDupList)
  
 def calcSubCost(tree, famT, delCost, dupCost, currentcopynum):
 
@@ -185,4 +170,4 @@ def descendantFam(node,Tree,famT):
 
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
+   main(sys.argv)
