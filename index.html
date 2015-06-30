@@ -64,6 +64,58 @@ fasta format.</p>
 <p>mrca(tree, family) returns the most recent common ancestor for a given gene family.</p>
 
 <h3>
+<a id="testatree" class="anchor" href="#testatree" aria-hidden="true"><span class="octicon octicon-link"></span></a>testATree</h3>
+
+<p>The correct phylogenetic tree for our 5 sample species.  I typed this out by hand, there was no script directly involved in making this.</p>
+
+<h3>
+<a id="processfamgenespy" class="anchor" href="#processfamgenespy" aria-hidden="true"><span class="octicon octicon-link"></span></a>processFamGenes.py</h3>
+
+<p>This is a collection of scripts put together to generate the needed information
+to run dupDel.  It's a good idea to run this once and keep the files around.
+It is important to note that the input files are made once with other scripts I
+haven't looked into.</p>
+
+<p>Input:</p>
+
+<ul>
+<li>fam.out (silix results)</li>
+<li>geneSpeciesMap.txt</li>
+<li>dbList.txt (file with sample species)</li>
+<li>geneOrder.txt </li>
+</ul>
+
+<p>Output:</p>
+
+<ul>
+<li>famGenes.txt</li>
+<li>famInfoResult.txt</li>
+<li>adjacencyInfo.txt</li>
+</ul>
+
+<p>Sample command: python processFamGenes.py -f fam.out -m geneSpeciesMap.txt -d dbList.txt -g geneOrder.txt</p>
+
+<h3>
+<a id="dupdelpy" class="anchor" href="#dupdelpy" aria-hidden="true"><span class="octicon octicon-link"></span></a>dupDel.py</h3>
+
+<p>This script calculates the minimum cost and associated duplications/deletions for every gene family.</p>
+
+<p>Input:</p>
+
+<ul>
+<li>testATree</li>
+<li>famInfoResult.txt</li>
+</ul>
+
+<p>Output:</p>
+
+<ul>
+<li>dupDelAll.txt</li>
+</ul>
+
+<p>Sample command: python dupDel.py -t testATree -f famInfoResult.txt -d 3 -c 5 -n 1</p>
+
+<h3>
 <a id="authors--contributors" class="anchor" href="#authors--contributors" aria-hidden="true"><span class="octicon octicon-link"></span></a>Authors &amp; Contributors</h3>
 
 <p>John Snow knows nothing.</p>
