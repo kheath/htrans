@@ -10,30 +10,18 @@ import mrca, sys, ast, argparse
 from functools import wraps
 
 def main(argv):
-    '''Do stuff'''
-    # famT=(7,3,0,104,0,2)
-    # tree=mrca.readTree(argv[0]) 
-    # delCost= 3  #int(argv[1]) #user input of deletion cost.
-    # dupCost= 5  #int(argv[2]) #user input of duplication cost.
-    # currentcopynum= 1 #int(argv[3]) #user input of initial copy numbers. Normally, 1 should be inputted.
-    # mrcaA = mrca.mrca(tree, famT) #find the most recent common ancestor (mrca).
-    # subtreeA = subtree(mrcaA, tree) #find the subtree which has the mrca as its root.
-    # result=dupDel(subtreeA,famT,delCost,dupCost,currentcopynum) #store the dupDel result.
-    # print result
-
 
     parser = argparse.ArgumentParser()
     requiredNamed = parser.add_argument_group('required named arguments')
-    requiredNamed.add_argument('-t', '--tree', help='Tree file name (testATree.txt)', required=True)
+    requiredNamed.add_argument('-t', '--tree', help='Tree file name (testATree)', required=True)
     requiredNamed.add_argument('-f', '--fams', help='File with family tuple (famInfoResult.txt)', required=True)
     requiredNamed.add_argument('-d', help='Deletion cost', type=int, required=True)
-    requiredNamed.add_argument('-c', help='Duplication cost', type=int, required=True)
-    # requiredNamed.add_argument('-p', help='Partition file name', required=True)  
-    parser.add_argument('-v', '--verbose', help='Increase output verbosity', action='store_true')
+    requiredNamed.add_argument('-c', help='Duplication cost', type=int, required=True) 
+    # parser.add_argument('-v', '--verbose', help='Increase output verbosity', action='store_true')
     parser.add_argument('-n', help='Initial copy number of genes at the mrca', type=int, required=False, default=1)
     args = parser.parse_args()
     
-    verbose = args.verbose
+    # verbose = args.verbose
 
 
     fullTree = mrca.readTree(args.tree)
@@ -50,6 +38,7 @@ def main(argv):
         sub = subtree(mrcaF, fullTree)
         results.append((mrcaF, dupDel(sub, fam, args.d, args.c, args.n)))
 
+    # Write out the cost, duplication, deletion, and mrca information
     with open('dupDelAll.txt', 'w+') as f:
         for family in results:
             f.write(str(family)+'\n')
@@ -67,6 +56,7 @@ def readFamInfo(infile):
 
 
 def memoize(func):
+    '''Memo function for dupDel to avoid repeated calculations'''
     cache = {}
     @ wraps(func)
     def wrap(*args):
@@ -82,10 +72,9 @@ def dupDel(tree, famT, delCost, dupCost, currentcopynum):
 
     if tree[1] == ():
         return (0,[],[]) #base case, we get to a leaf.
-    # elif (currentcopynum, tree) in memo: 
-    #     return memo[(currentcopynum,tree)] #We memoize this function to make it run faster.
     else:  # This is a subtree
         
+        # Get the cost, duplications, and deletions for both subtrees
         lcost, lDels, lDups = calcSubCost(tree[1], famT, delCost, dupCost, currentcopynum)
         rcost, rDels, rDups = calcSubCost(tree[2], famT, delCost, dupCost, currentcopynum)
 
@@ -93,6 +82,9 @@ def dupDel(tree, famT, delCost, dupCost, currentcopynum):
 
  
 def calcSubCost(tree, famT, delCost, dupCost, currentcopynum):
+    '''Recursive helper function of dupDel.
+    Takes a subtree and the remaining info from dupDel and uses recursion to find
+    the min cost and associated duplications and deletions.'''
 
     leaves=descendantFam(tree[0],tree,famT) #find all the possible family copy numbers of leaves under the left subtree.
     minCost=float('inf') #this variable stores the minimal cost, initially set to infinity.
@@ -116,17 +108,14 @@ def calcSubCost(tree, famT, delCost, dupCost, currentcopynum):
                 fullDupList=dupList
                 if i > currentcopynum: #find the required duplication or deletion events on this level.
                     fullDelList.extend([tree[0]]*(i-currentcopynum))
-                    # delAction=[]
                 elif i < currentcopynum:
-                    # dupAction=[]
                     fullDelList.extend([tree[0]]*(currentcopynum-i))
-                # else:
-                    # delAction=[]
-                    # dupAction=[]
+
     return minCost, fullDelList, fullDupList
 
 
-      
+######### Stuff I Shameless Copied from a CS 5 Green Assignment #########
+
 def find(node, Tree):
     ''' Returns True if node is in the Tree and False otherwise. '''
     if Tree == (): return False
