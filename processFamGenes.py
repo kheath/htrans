@@ -15,14 +15,11 @@ def main(argv):
     parser = argparse.ArgumentParser()
     requiredNamed = parser.add_argument_group('required named arguments')
     requiredNamed.add_argument('-f', '--families', help='Family file name (fam.out)', required=True)
-    requiredNamed.add_argument('-m', '--map', help='Gene to species map', required=True)
-    requiredNamed.add_argument('-d', '--database', help='File with species of interest', required=True)
-    requiredNamed.add_argument('-g', '--geneOrder', help='Gene order file', required=True) 
-    # requiredNamed.add_argument('-o', '--output', help='Output file', required=True) 
-    # parser.add_argument('-v', '--verbose', help='Increase output verbosity', action='store_true')
-    args = parser.parse_args()
+    requiredNamed.add_argument('-m', '--map', help='Gene to species map (geneSpeciesMap.txt)', required=True)
+    requiredNamed.add_argument('-d', '--database', help='File with species of interest (dbList.txt)', required=True)
+    requiredNamed.add_argument('-g', '--geneOrder', help='Gene order file (geneOrder.txt)', required=True) 
     
-    # verbose = args.verbose
+    args = parser.parse_args()
 
     gsMap, geneNums = readGeneSpeciesMap(args.map)
     species = readSpecies(args.database)
@@ -33,12 +30,10 @@ def main(argv):
             f.write(str(key)+' '+' '.join(value)+'\n')
 
     data = famInfo(famData, gsMap, species)
-
     with open('famInfoResult.txt', 'w+') as f:
         f.write(str(data)+'\n')
 
     adjInfo = adjacencyInfo(args.geneOrder, geneNums)
-
     with open('adjacencyInfo.txt', 'w+') as f:
         f.write(str(adjInfo)+'\n')
 
@@ -46,7 +41,8 @@ def main(argv):
 
 def readGeneSpeciesMap(infile):
     '''Read in the geneSpeciesMap.
-    Returns a dictionary of {gene : species}'''
+    Returns a dictionary of {gene : species}
+    and a dictionary of gene number <-> gene name'''
     data = {}
     numbers = {}
     count = 1
@@ -76,7 +72,7 @@ def readSpecies(infile):
     return species
 
 def sortFamData(famData):
-    '''Reads fam.out and outputs family# /t genes'''
+    '''Reads fam.out and outputs family# + genes'''
 
     data = {}
     with open(famData, 'r') as f:
