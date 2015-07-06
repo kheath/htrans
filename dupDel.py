@@ -62,7 +62,9 @@ def memoize(func):
     def wrap(*args):
         if args not in cache:
             cache[args] = func(*args)
+            print cache
         return cache[args]
+
     return wrap
 
 @memoize
