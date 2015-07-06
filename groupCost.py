@@ -1,6 +1,7 @@
 
 
 import group
+import orderCost1
 
 def groupCost(groupA, groupB, tree, adjInfo):
     '''Find the cost of merging two groups'''
@@ -8,10 +9,16 @@ def groupCost(groupA, groupB, tree, adjInfo):
     pairs = [(groupA.getFamilies()[0], groupB.getFamilies()[0]), (groupA.getFamilies()[-1], groupB.getFamilies()[0]), 
                 (groupA.getFamilies()[0], groupB.getFamilies()[-1]), (groupA.getFamilies()[-1], groupB.getFamilies()[-1])] 
 
+    f=open('FamSpAdjD.txt','r')
+    s=f.readline()
+    FamSpAdjD=ast.literal_eval(s)
+    f.close()
+
     minCost = float(inf)
     bestOrder = 0
     for index, adj in enumerate(pairs):
-        cost = hOrderCost(tree, adj, 0, adjInfo, groupA, groupB)
+        cost = pairOrderCost(mrca.readTree('testATree'), 1, FamSpAdjD, groupA.getFamilies(),
+                 groupB.getFamilies, adj, {})
         if cost < minCost:
             minCost = cost
             bestOrder = index
