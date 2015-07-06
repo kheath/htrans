@@ -159,18 +159,18 @@ def idGroups(familyData, heatmap, cutoff):
             flat = uniq(list(sum(commonSp,())))
             with open('majorGroups.txt', 'a') as f:
                 f.write(str(flat)+'\n')
-            bigG[count] = Group(familyData[flat[0]], 6)
+            # bigG[count] = Group(familyData[flat[0]], 6)
             
-            if len(flat[1:]) > 0:
-                for i in range(1, len(flat)):
-                    bigG[count].addFamily(familyData[flat[i]])
-            temp = len(groups)
-            for num in flat:
-                for tup in groups:
-                    if num in tup:
-                        groups.remove(tup)
+            # if len(flat[1:]) > 0:
+                # for i in range(1, len(flat)):
+                    # bigG[count].addFamily(familyData[flat[i]])
+            # temp = len(groups)
+            # for num in flat:
+                # for tup in groups:
+                    # if num in tup:
+                        # groups.remove(tup)
                 # groups.remove(tup)
-            print 'Removed ', temp-len(groups), ' tuples' 
+            # print 'Removed ', temp-len(groups), ' tuples' 
         count += 1
 
     return bigG
