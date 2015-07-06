@@ -20,7 +20,7 @@ class Group:
         self.deletions = []
         self.duplications = []
 
-        initData()
+        self.initData()
 
         self.mergeFamily(family)
         

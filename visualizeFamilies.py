@@ -27,19 +27,22 @@ def main(argv):
     print 'Original length = ', len(familyData)
     print 'Uniqued length = ', len(uData)
 
+    print 'Evaluating...'
+
     data, row_labels, column_labels = evaluate(uData, 1.0, 2.0)
     
     # gs = initializeGroups(familyData)
     # for key, value in gs.iteritems():
         # print key, ' : ', value.getFamilies(), '--', value.getDuplications(), '--', value.getDeletions()
 
+    print 'Identifying groups...'
 
     idstuff = idGroups(familyData, data, 1.0)
 
-    for key, value in idstuff.iteritems():
-        if len(value.getFamilies()) > 1:
-            print key, ' : ', value.getFamilies(), '--', value.getDuplications(), '--', value.getDeletions()
-            print ''
+    # for key, value in idstuff.iteritems():
+        # if len(value.getFamilies()) > 1:
+            # print key, ' : ', value.getFamilies(), '--', value.getDuplications(), '--', value.getDeletions()
+            # print ''
 
     
 
@@ -143,8 +146,10 @@ def idGroups(familyData, heatmap, cutoff):
             if newMap[x,y] >= cutoff:
                 groups.append((x,y))
 
-    print 'List of groups: '
-    print groups
+    # print 'List of groups: '
+    # print groups
+    with open('majorGroups.txt', 'w+') as f:
+        f.write('Groups from dupDel \n')
 
     count = 0
     while len(groups) > 0:
@@ -152,7 +157,8 @@ def idGroups(familyData, heatmap, cutoff):
         commonSp = [item for item in groups if count in item]
         if len(commonSp) > 0:
             flat = uniq(list(sum(commonSp,())))
-            print 'Merging families: ', flat
+            with open('majorGroups.txt', 'a') as f:
+                f.write(str(flat)+'\n')
             bigG[count] = Group(familyData[flat[0]], 6)
             
             if len(flat[1:]) > 0:
@@ -198,11 +204,11 @@ def evaluate(familyData, cut, maxVal):
         
     return heat, row_labels, column_labels
 
-def calcDiff(l1, l2, n):
+def calcDiff(la, lb, n):
     # Calculate the difference in the number of times each node appears in two list
     diff = 0
     for i in range(0,2*n-1):
-        diff += abs(l1.count(i)-l2.count(i))
+        diff += abs(la.count(i)-lb.count(i))
     return diff
 
     # Sum of unique events / total number of events
