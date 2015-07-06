@@ -10,13 +10,12 @@ def main(argv):
     s=f.readline()
     FamSpAdjD=ast.literal_eval(s)
     f.close()
-    groupA=(ast.literal_eval(argv[3]))
-    print groupA
+
+    groupA=[1,2]
+    groupB=[3]            
+        
+    pair=(ast.literal_eval(argv[3]))
     
-    groupB=(ast.literal_eval(argv[4]))
-    print groupB
-    pair=(ast.literal_eval(argv[5]))
-    print type(pair[1])
     result=pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,{})
     print result
 
@@ -24,44 +23,53 @@ def pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,memo):
     
     if tree[1]==(): #base case: At a leaf:
         if ((pair[1],tree[0]) in FamSpAdjD) == False: 
-            return cost
+            if remainFam(groupB,tree[0],FamSpAdjD) == []:
+                return 0
+            else:
+                remain=remainFam(groupB,tree[0],FamSpAdjD)
+                if pair[1]==groupB[0]:
+                    bestB=remain[0]
+                else:
+                    bestB=remain[-1]
+
+                if ((pair[0],tree[0]) in FamSpAdjD) == False:
+                    if remainFam(groupA,tree[0],FamSpAdjD) == []:
+                        return 0
+                    else:
+                        remain=remainFam(groupA,tree[0],FamSpAdjD)
+                        if pair[0]==groupA[0]:
+                            bestA=remain[0]
+                        else:
+                            bestA=remain[-1]
+                    if bestB in FamSpAdjD[(bestA,tree[0])]:
+                        return 0
+                    else:
+                        return cost
+                else:
+                    if bestB in FamSpAdjD[(pair[0],tree[0])]:
+                        return 0
+                    else:
+                        return cost
         else:
             if ((pair[0],tree[0]) in FamSpAdjD) == False: #If first family got deleted:
-                print "pathD"
                 if remainFam(groupA,tree[0],FamSpAdjD) == []:
                     return 0
                 else:
                     remain=remainFam(groupA,tree[0],FamSpAdjD)
-                    print remain
-                    for fam in remain:
-                        if fam in FamSpAdjD[(pair[1],tree[0])]: 
-                            return 0
-                        else: return cost
-                    '''
-                    ##Following code needs adjacency information within a group.##
-                    closest=pair[0]
-                    unselectable=[]
-
-
-                    while True:
-                        if closest in remain: break
-                        adjacentFam=FamSpAdjD[(closest,tree[0])]
-                        for fam in adjacentFam:
-                            if (fam in groupA) and (fam not in unselectable): 
-                                unselectable.append(closest)
-                                closest=fam
-                                break
-                    if closest in FamSpAdjD[(pair[1],tree[0])]: return 0
-
-                    else: return cost
-                    '''
+                    if pair[0]==groupA[0]:
+                        bestA=remain[0]
+                    else:
+                        bestA=remain[-1]
+                    if pair[1] in FamSpAdjD[(bestA,tree[0])]:
+                        return 0
+                    else:
+                        return cost
+                
+                   
             else: #If both families are present:
-
                 if pair[1] in FamSpAdjD[(pair[0],tree[0])]: 
-                    #print "pathE"
                     return 0 #If they are adjacent, no charge.
                 else:
-                    #print "pathF"
                     return cost #Otherwise, charge.
 
     elif (tree,pair) in memo: return memo[(tree,pair)]
@@ -72,7 +80,7 @@ def pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,memo):
             if (pair[0],leaf) in FamSpAdjD:
                 adjacentFam=FamSpAdjD[(pair[0],leaf)]
                 for fam in adjacentFam:
-                    if (fam not in options):
+                    if (fam not in options) and (fam in groupB):
                         options.append(fam)
         if (pair[1] not in options): options.append(pair[1])
         
@@ -95,7 +103,7 @@ def pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,memo):
             if (pair[0],leaf) in FamSpAdjD:
                 adjacentFam=FamSpAdjD[(pair[0],leaf)]
                 for fam in adjacentFam:
-                    if (fam not in options):
+                    if (fam not in options) and (fam in groupB):
                         options.append(fam)
         
         if (pair[1] not in options): options.append(pair[1])
