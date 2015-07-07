@@ -11,6 +11,8 @@ def main(argv):
     FamSpAdjD=ast.literal_eval(s)
     f.close()
 
+
+
     groupA=[1,2]
     groupB=[3]            
         
