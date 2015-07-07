@@ -15,6 +15,7 @@ from collections import Counter
 from itertools import *
 from group import Group
 from copy import deepcopy
+from decimal import Decimal
 
 
 def main(argv):
@@ -30,6 +31,8 @@ def main(argv):
     print 'Evaluating...'
 
     data, row_labels, column_labels = evaluate(uData, 1.0, 2.0)
+
+    np.savetxt('heatmap', data)
     
     # gs = initializeGroups(familyData)
     # for key, value in gs.iteritems():
@@ -199,7 +202,7 @@ def evaluate(familyData, cut, maxVal):
             heat[x,y] += 1.0
 
         if heat[x,y] >= cut:
-            heat[x,y] = maxVal
+            heat[x,y] = int(maxVal)
         
         
     return heat, row_labels, column_labels
