@@ -7,27 +7,27 @@ adjInfoF=sys.argv[5]
 
 
 def GFSdict(result3,geneSpeciesDictF,speciesDictF,geneDictF,adjInfoF):
-    f=open(geneSpeciesDictF,'r')
+    f=open(geneSpeciesDictF,'r') # geneSpeciesDict.txt
     s=f.readline()
     geneSpeciesDict=ast.literal_eval(s)
     f.close()
 
-    f=open(speciesDictF,'r')
+    f=open(speciesDictF,'r') # speciesDict.txt
     s=f.readline()
     speciesDict=ast.literal_eval(s)
     f.close()
 
-    f=open(geneDictF,'r')
+    f=open(geneDictF,'r') # geneNumbers.txt - numberGenes.py
     s=f.readline()
     geneDict=ast.literal_eval(s)
     f.close()
     
-    f=open(adjInfoF,'r')
+    f=open(adjInfoF,'r') # adjacencyInfo
     s=f.readline()
     adjInfo=ast.literal_eval(s)
     f.close()
     
-    f=open(result3,'r')
+    f=open(result3,'r') # sortFamData.py
     result={}
     temp={}
     while True:
