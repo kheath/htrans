@@ -1,9 +1,10 @@
-
-import mrca,sys,ast
+from htrans import *
+import mrca,sys,ast,group
 
 
 def main(argv):
     tree=mrca.readTree(argv[0])
+    originTree=tree
     cost=int(argv[1])
     FamSpAdjDFile=argv[2]
     f=open(FamSpAdjDFile,'r')
@@ -11,69 +12,45 @@ def main(argv):
     FamSpAdjD=ast.literal_eval(s)
     f.close()
 
-
-
-    groupA=[1,2]
-    groupB=[3]            
+    
         
     pair=(ast.literal_eval(argv[3]))
-    
-    result=pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,{})
+    groupL=initializeGroups(readFamilies('dupDelAll.txt'))
+    groupA=groupL[1221]
+    groupB=groupL[1220]
+    famGroupD=setFamGroupDict(groupL)
+    result=pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,pair,{})
     print result
 
-def pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,memo):
-    
+def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,pair,memo):
+    '''groupA and groupB are actual groups'''
+    originHtrans=groupA.getMrcag()
+    groupAFam=groupA.getFamilies()
+    groupBFam=groupB.getFamilies()
     if tree[1]==(): #base case: At a leaf:
-        if ((pair[1],tree[0]) in FamSpAdjD) == False: 
-            if remainFam(groupB,tree[0],FamSpAdjD) == []:
+        if (remainFam(groupAFam,tree[0],FamSpAdjD) == []) or (remainFam(groupBFam,tree[0],FamSpAdjD) == []):
+            return 0
+        else:
+            repA=representative(groupAFam,tree[0],pair[0],FamSpAdjD)
+            repB=representative(groupBFam,tree[0],pair[1],FamSpAdjD)
+            adjFList=FamSpAdjD[(repA,tree[0])]
+            rAdjFList={}
+            for adjF in adjFList:
+                currentGroupID=famGroupD[adjF]
+                currentGroup=groupL[currentGroupID]
+                currentHtrans=currentGroup.getMrcag()
+                if lowerThanOrigin(subtree(originHtrans,originTree),originHtrans,currentHtrans) == True:
+                    otherEndFam=otherEnd(currentGroup.getFamilies(),adjF,tree[0],FamSpAdjD)
+                    otherEndAdjFL=FamSpAdjD[(otherEndFam,tree[0])]
+                    for otherEndAdjF in otherEndAdjFL:
+                        if (otherEndAdjF != repA) and (otherEndAdj not in currentGroup.getFamilies()):
+                            rAdjFList.append(otherEndAdjF)
+                else:
+                    rAdjFList.append(adjF)
+            if repB in rAdjFList:
                 return 0
             else:
-                remain=remainFam(groupB,tree[0],FamSpAdjD)
-                if pair[1]==groupB[0]:
-                    bestB=remain[0]
-                else:
-                    bestB=remain[-1]
-
-                if ((pair[0],tree[0]) in FamSpAdjD) == False:
-                    if remainFam(groupA,tree[0],FamSpAdjD) == []:
-                        return 0
-                    else:
-                        remain=remainFam(groupA,tree[0],FamSpAdjD)
-                        if pair[0]==groupA[0]:
-                            bestA=remain[0]
-                        else:
-                            bestA=remain[-1]
-                    if bestB in FamSpAdjD[(bestA,tree[0])]:
-                        return 0
-                    else:
-                        return cost
-                else:
-                    if bestB in FamSpAdjD[(pair[0],tree[0])]:
-                        return 0
-                    else:
-                        return cost
-        else:
-            if ((pair[0],tree[0]) in FamSpAdjD) == False: #If first family got deleted:
-                if remainFam(groupA,tree[0],FamSpAdjD) == []:
-                    return 0
-                else:
-                    remain=remainFam(groupA,tree[0],FamSpAdjD)
-                    if pair[0]==groupA[0]:
-                        bestA=remain[0]
-                    else:
-                        bestA=remain[-1]
-                    if pair[1] in FamSpAdjD[(bestA,tree[0])]:
-                        return 0
-                    else:
-                        return cost
-                
-                   
-            else: #If both families are present:
-                if pair[1] in FamSpAdjD[(pair[0],tree[0])]: 
-                    return 0 #If they are adjacent, no charge.
-                else:
-                    return cost #Otherwise, charge.
-
+                return cost                                                                
     elif (tree,pair) in memo: return memo[(tree,pair)]
     else: #General case: At a subtree:
         leftLeaves=leafList(tree[1])
@@ -82,14 +59,14 @@ def pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,memo):
             if (pair[0],leaf) in FamSpAdjD:
                 adjacentFam=FamSpAdjD[(pair[0],leaf)]
                 for fam in adjacentFam:
-                    if (fam not in options) and (fam in groupB):
+                    if (fam not in options) and (fam in groupBFam):
                         options.append(fam)
         if (pair[1] not in options): options.append(pair[1])
         
         
         minLeftCost = float('inf')
         for option in options:
-            leftSubCost=pairOrderCost(tree[1],cost,FamSpAdjD,groupA,groupB,(pair[0],option),memo)
+            leftSubCost=pairOrderCost(tree[1],originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,(pair[0],option),memo)
             if option == pair[1]:
                 leftCost=leftSubCost
             else:
@@ -105,14 +82,14 @@ def pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,memo):
             if (pair[0],leaf) in FamSpAdjD:
                 adjacentFam=FamSpAdjD[(pair[0],leaf)]
                 for fam in adjacentFam:
-                    if (fam not in options) and (fam in groupB):
+                    if (fam not in options) and (fam in groupBFam):
                         options.append(fam)
         
         if (pair[1] not in options): options.append(pair[1])
 
         minRightCost = float('inf')
         for option in options:
-            rightSubCost=pairOrderCost(tree[2],cost,FamSpAdjD,groupA,groupB,(pair[0],option),memo)
+            rightSubCost=pairOrderCost(tree[2],originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,(pair[0],option),memo)
             if option == pair[1]:
                 rightCost=rightSubCost
             else:
@@ -123,6 +100,30 @@ def pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,memo):
     memo[(tree,pair)]= minLeftCost+minRightCost
     return minLeftCost+minRightCost
 
+def otherEnd(group,fam,leaf,FamSpAdjD):
+    if len(group)==1:
+        return group[0]
+    else:
+        if fam == group[0]:
+            if (group[-1],leaf) in FamSpAdjD:
+                return group[-1]
+            else:
+                return otherEnd(group[:-2],fam,leaf,FamSpAdjD)
+        else:
+            if (group[0],leaf) in FamSpAdjD:
+                return group[0]
+            else:
+                return otherEnd(group[1:],fam,leaf,FamSpAdjD)
+    
+
+def lowerThanOrigin(Tree,originNode,currentNode):
+    if Tree[1]==():
+        return False
+    elif Tree[0]==currentNode and Tree[0]!=originNode:
+        return True
+    else:
+        return lowerThanOrigin(Tree[1],originNode,currentNode) or lowerThanOrigin(Tree[2],originNode,currentNode)
+        
 
 def remainFam(group,leaf,FamSpAdjD):
     result=[]
@@ -131,7 +132,19 @@ def remainFam(group,leaf,FamSpAdjD):
             result.append(fam)
     return result
                 
-
+def representative(group,leaf,fam,FamSpAdjD):
+    if (fam,leaf) in FamSpAdjD:
+        return fam
+    else:
+        if fam==group[0]:
+            return representative(group[1:],leaf,group[1],FamSpAdjD)
+        elif fam==group[-1]:
+            return representative(group[:-1],leaf,group[-2],FamSpAdjD)
+        else:
+            for family in group:
+                if (family,leaf) in FamSpAdjD:
+                    return family
+            return None
                 
 def descendantNodes(node, Tree):
     '''Returns the descendant nodes of a given node.'''
