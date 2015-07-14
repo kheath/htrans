@@ -602,17 +602,19 @@ def calcDiff(la, lb, n):
 
 
 def initializeGroups(familyData):
-    '''Make every family into a group'''
+    '''Make every family into a group.  Assumes the list of families starts with 'None'
+    as the first element.'''
 
     groups = [None]
 
-    for index, value in enumerate(familyData):
+    for index, value in enumerate(familyData[1:], 1):
         groups.append(Group(value, index, 6))
 
     return groups
 
 def readFamilies(filename):
-    '''Reads in the results of dupDel and stores families as a dictionary'''
+    '''Reads in the results of dupDel and stores families as a dictionary.
+    Note, the first element is None to index families from 1.'''
 
     families = [None]
 
