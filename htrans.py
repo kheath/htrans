@@ -583,8 +583,7 @@ def calcDist(groupA, groupB, tree, famSpAdjD):
     '''Compares the dupDel model and order cost of two groups'''
 
 
-    ddDiff = calcDiff(groupA.getDuplications(), groupB.getDuplications())
-                +calcDiff(groupA.getDeletions(), groupB.getDeletions())
+    ddDiff = calcDiff(groupA.getDuplications(), groupB.getDuplications())+calcDiff(groupA.getDeletions(), groupB.getDeletions())
 
     ordCost = groupCost(groupA, groupB, tree, famSpAdjD)
 
@@ -611,6 +610,18 @@ def initializeGroups(familyData):
         groups.append(Group(value, index, 6))
 
     return groups
+
+##### - Family # -> Group # -- #####
+def setFamGroupDict(groups):
+    '''Initializes the initial map of family number to group number.
+    This can also be used to update the map based on current groups
+    '''
+
+    famGroupDict = {family: g.getIdNum() for g in groups if g != None for family in g.getFamilies()}
+
+    return famGroupDict
+
+
 
 def readFamilies(filename):
     '''Reads in the results of dupDel and stores families as a dictionary.

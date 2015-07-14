@@ -22,7 +22,7 @@ class Group:
         self.id = idnum
         self.duplications, self.deletions = self.initData()
 
-        self.mergeFamily(family)
+        self.mergeFamily(family, idnum)
 
         self.front = (idnum, self.duplications, self.deletions)
         self.back = (idnum, self.duplications, self.deletions)
@@ -39,6 +39,9 @@ class Group:
 
     def getNumSpecies(self):
         return self.numSpecies
+
+    def getIdNum(self):
+        return self.id
 
     def getDeletions(self):
         return self.deletions
@@ -121,7 +124,7 @@ class Group:
 
         return duplications, deletions
 
-    def mergeFamily(self, family):
+    def mergeFamily(self, family, familyNum):
         ''' Gene history dictionary:
         Duplications = [[[value,[families]], [value, [families]]], [families], families] where each index
         represents a node.  This way we get node -- number of dups/del -- family number '''
@@ -129,7 +132,7 @@ class Group:
 
         dups = family[1][1]
         dels = family[1][2]
-        familyNum = family[2]
+        # familyNum = family[2]
 
         # Add events to duplications structure
         dupsD = Counter(dups)
