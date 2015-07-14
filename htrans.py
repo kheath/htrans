@@ -20,7 +20,7 @@ from functools import wraps
 def main(argv):
 
 
-    ############## ---- processFamGenes ---- ################
+    ############## ---- Parse Command line Arguments ---- ################
     parser = argparse.ArgumentParser()
     requiredNamed = parser.add_argument_group('required named arguments')
     requiredNamed.add_argument('-f', '--families', help='Family file name (fam.out)', required=True)
@@ -36,6 +36,7 @@ def main(argv):
     
     args = parser.parse_args()
 
+    ############## ---- processFamGenes ---- ################
     gsMap, geneNums = readGeneSpeciesMap(args.map)  # Gene-Species map, and gene Numbers
     species = readSpecies(args.database)            # List of species we're looking at
     famD = sortFamData(args.families)               # Silix family data
@@ -52,10 +53,10 @@ def main(argv):
     ############## ---- Group Cost ---- ################
 
     familyData = readFamilies('dupDelAll.txt')
-
-    groupDict = initializeGroups(familyData)
-
+    groupsD = initializeGroups(familyData)
+    famGroupD = setFamGroupDict(groupsD)
     tree = mrca.readTree('testATree')
+    famSpAdjD = GFSdict(sortFamData(famD), gsMap, speciesDict(args.o, species), geneNums, adjInfo)
 
     #### NEED TO DO #####
     f=open('FamSpAdjD.txt','r')
@@ -595,7 +596,7 @@ def calcDiff(la, lb, n):
     diff = 0
     for i in range(0,2*n-1):
         for x in range(0, len(i)):
-            if la[i][x][0] != lb[i][x][0]:
+            if la[i][x][0] != lb[i][x][0] or set(la[i][x][1]) != set(lb[i][x][1])):
                 diff += 1
     return diff
 
@@ -713,17 +714,14 @@ def speciesDict(orthologs, speciesList):
 def GFSdict(famNumGeneMap, geneSpeciesDict, speciesDict, geneDict, adjInfo):
     '''
     Takes 5 data structures:
-        1) geneSpeciesDict -- geneSpeciesDict()
-        2) speciesDict -- speciesDict()
-        3) geneDict -- readGeneSpeciesMap() 2nd outputs
-        4) adjInfo -- adjacencyInfo()
-        5) result -- sortFamData()
+        1) famNumGeneMap -- sortFamData()
+        2) geneSpeciesDict -- geneSpeciesDict()
+        3) speciesDict -- speciesDict()
+        4) geneDict -- readGeneSpeciesMap() 2nd outputs
+        5) adjInfo -- adjacencyInfo()
     
     Outputs FamSpAdjD
     '''
-    
-    
-    f=open(result3,'r') # sortFamData.py
 
     results=defaultdict(list)
     temp={}
@@ -736,7 +734,7 @@ def GFSdict(famNumGeneMap, geneSpeciesDict, speciesDict, geneDict, adjInfo):
             geneNum = geneDict[gene]
             famNum = key
             temp[geneNum] = famNum
-            result[(famNum, speciesNum)].append(geneNum)
+            results[(famNum, speciesNum)].append(geneNum)
         
     for key, value in results.iteritems():
         adjacentFam = []

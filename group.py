@@ -20,9 +20,7 @@ class Group:
         self.deletions = []
         self.duplications = []
         self.id = idnum
-        self.duplications, self.deletions = self.initData()
-
-        self.mergeFamily(family, idnum)
+        self.duplications, self.deletions = makeModel(family, idnum)
 
         self.front = (idnum, self.duplications, self.deletions)
         self.back = (idnum, self.duplications, self.deletions)
@@ -55,11 +53,6 @@ class Group:
     def getBack(self):
         return self.back
 
-    # def addFamily(self, family):
-    #     self.families.append(family)
-    #     self.mergeFamily(family)
-    #     return True
-
     def setMrcag(self, node):
         self.mrcag = node
         return True
@@ -86,12 +79,12 @@ class Group:
 
         return dups, dels
 
-    def makeModel(self, family):
+    def makeModel(self, family, familyNum):
         '''Take a family and generate the dup/del structures for it'''
 
         dups = family[1][1]
         dels = family[1][2]
-        familyNum = family[2]
+        
 
         duplications, deletions = initData()
 
