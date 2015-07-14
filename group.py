@@ -20,7 +20,7 @@ class Group:
         self.deletions = []
         self.duplications = []
         self.id = idnum
-        self.duplications, self.deletions = makeModel(family, idnum)
+        self.duplications, self.deletions = self.makeModel(family, idnum)
 
         self.front = (idnum, self.duplications, self.deletions)
         self.back = (idnum, self.duplications, self.deletions)
@@ -58,12 +58,12 @@ class Group:
         return True
 
     def updateFront(self, family, idnum):
-        dups, dels = makeModel(family)
+        dups, dels = self.makeModel(family)
         self.front = (idnum, dups, dels)
         return True
 
     def updateBack(self, family, idnum):
-        dups, dels = makeModel(family)
+        dups, dels = self.makeModel(family)
         self.back = (idnum, dups, dels)
         return True
 
@@ -86,7 +86,7 @@ class Group:
         dels = family[1][2]
         
 
-        duplications, deletions = initData()
+        duplications, deletions = self.initData()
 
         # Add events to duplications structure
         dupsD = Counter(dups)
@@ -116,6 +116,40 @@ class Group:
                 deletions[key].append([value, [familyNum]])
 
         return duplications, deletions
+
+
+    # def mergeModel(self, m1, m2):
+
+    #     # Merge duplications
+    #     newDups = group.getDuplications()
+    #     for nodeNum, node in enumerate(newDups):           
+    #         for eventNum, event in enumerate(node):
+    #             mergeFound = False
+    #             for a, b in enumerate(self.duplications[nodeNum]):
+    #                 if event[0] == b[a][0]:
+    #                     self.duplications[nodeNum][a][1] = list(set(self.duplications[nodeNum][eventNum][1]) 
+    #                                                             |set(deepcopy(event[1])))
+    #                     mergeFound = True
+    #                     break
+    #             if not mergeFound:
+    #                 self.duplications[nodeNum].append(event)
+
+    #     # Merge deletions
+    #     newDels = group.getDeletions()
+    #     for nodeNum, node in enumerate(newDels):
+    #         for eventNum, event in enumerate(node):
+    #             mergeFound = False
+    #             for a,b in enumerate(self.deletions[nodeNum]):
+    #                 if event[0] == b[a][0]:
+    #                     self.deletions[nodeNum][a][1] = list(set(self.deletions[nodeNum][eventNum][1]) 
+    #                                                             |set(deepcopy(event[1])))
+    #                     mergeFound = True
+    #                     break
+    #             if not mergeFound:
+    #                 self.deletions[nodeNum].append(event)
+
+    #     return True
+
 
     def mergeFamily(self, family, familyNum):
         ''' Gene history dictionary:
