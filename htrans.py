@@ -596,7 +596,7 @@ def calcDiff(la, lb, n):
     diff = 0
     for i in range(0,2*n-1):
         for x in range(0, len(i)):
-            if la[i][x][0] != lb[i][x][0] or set(la[i][x][1]) != set(lb[i][x][1])):
+            if la[i][x][0] != lb[i][x][0] or set(la[i][x][1]) != set(lb[i][x][1]):
                 diff += 1
     return diff
 
