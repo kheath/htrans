@@ -1,4 +1,4 @@
-
+from htrans import *
 import mrca,sys,ast,group
 
 
@@ -12,12 +12,14 @@ def main(argv):
     FamSpAdjD=ast.literal_eval(s)
     f.close()
 
-    groupA=?
-    groupB=?
+    
         
     pair=(ast.literal_eval(argv[3]))
     groupL=initializeGroups(readFamilies('dupDelAll.txt'))
-    result=pairOrderCost(tree,cost,FamSpAdjD,groupA,groupB,pair,{})
+    groupA=groupL[1221]
+    groupB=groupL[1220]
+    famGroupD=setFamGroupDict(groupL)
+    result=pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,pair,{})
     print result
 
 def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,pair,memo):
@@ -26,25 +28,25 @@ def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,
     groupAFam=groupA.getFamilies()
     groupBFam=groupB.getFamilies()
     if tree[1]==(): #base case: At a leaf:
-       if (remainFam(groupAFam,tree[0],FamSpAdjD) == []) or (remainFam(groupBFam,tree[0],FamSpAdjD) == []):
-           return 0
-       else:
-           repA=representative(groupAFam,tree[0],pair[0],FamSpAdjD)
-           repB=representative(groupBFam,tree[0],pair[1],FamSpAdjD)
-           adjFList=FamSpAdjD[(repA,tree[0])]
-           rAdjFList={}
-           for adjF in adjFList:
-               currentGroupID=famGroupD[adjF]
-               currentGroup=groupL[currentGroupID]
-               currentHtrans=currentGroup.getMrcag()
-               if lowerThanOrigin(subtree(originHtrans,originTree),originHtrans,currentHtrans) == True:
-                   otherEndFam=otherEnd(currentGroup.getFamilies(),adjF,tree[0],FamSpAdjD)
-                   otherEndAdjFL=FamSpAdjD[(otherEndFam,tree[0])]
-                   for otherEndAdjF in otherEndAdjFL:
-                       if (otherEndAdjF != repA) and (otherEndAdj not in currentGroup.getFamilies()):
-                           rAdjFList.append(otherEndAdjF)
-               else:
-                   rAdjFList.append(adjF)
+        if (remainFam(groupAFam,tree[0],FamSpAdjD) == []) or (remainFam(groupBFam,tree[0],FamSpAdjD) == []):
+            return 0
+        else:
+            repA=representative(groupAFam,tree[0],pair[0],FamSpAdjD)
+            repB=representative(groupBFam,tree[0],pair[1],FamSpAdjD)
+            adjFList=FamSpAdjD[(repA,tree[0])]
+            rAdjFList={}
+            for adjF in adjFList:
+                currentGroupID=famGroupD[adjF]
+                currentGroup=groupL[currentGroupID]
+                currentHtrans=currentGroup.getMrcag()
+                if lowerThanOrigin(subtree(originHtrans,originTree),originHtrans,currentHtrans) == True:
+                    otherEndFam=otherEnd(currentGroup.getFamilies(),adjF,tree[0],FamSpAdjD)
+                    otherEndAdjFL=FamSpAdjD[(otherEndFam,tree[0])]
+                    for otherEndAdjF in otherEndAdjFL:
+                        if (otherEndAdjF != repA) and (otherEndAdj not in currentGroup.getFamilies()):
+                            rAdjFList.append(otherEndAdjF)
+                else:
+                    rAdjFList.append(adjF)
             if repB in rAdjFList:
                 return 0
             else:
