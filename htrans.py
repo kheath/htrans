@@ -602,12 +602,13 @@ def initializeGroups(familyData):
 
 ##### - Family # -> Group # -- #####
 def setFamGroupDict(groups):
-    '''Initializes the initial map of family number to group number.
+    '''Initializes the initial map of family number to group number. Now a List!
     This can also be used to update the map based on current groups
     '''
 
-    famGroupDict = {family: g.getIdNum() for g in groups if g != None for family in g.getFamilies()}
-
+    # famGroupDict = {family: g.getIdNum() for g in groups if g != None for family in g.getFamilies()}
+    famGroupDict = [famNum for famNum in range(0, len(groups))]
+    famGroupDict[0] = None
     return famGroupDict
 
 
@@ -619,18 +620,12 @@ def readFamilies(filename):
     families = [None]
 
     with open(filename, 'r') as f:
-        # famNum = 1
         while True:
             line = f.readline()
-
             if not line:
                 break
             temp = list(ast.literal_eval(line))
-            if temp[1][1] != [] or temp[1][2] != []:
-                families.append(temp)
-                # temp.append(famNum)
-                # families.append(temp)
-            # famNum+=1
+            families.append(temp)
 
     return families
 
