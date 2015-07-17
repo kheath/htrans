@@ -14,6 +14,8 @@ from group import Group
 from copy import deepcopy
 from os import path
 from functools import wraps
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 
@@ -58,6 +60,35 @@ def main(argv):
     tree = mrca.readTree('testATree')
     famSpAdjD = GFSdict(sortFamData(famD), gsMap, speciesDict(args.o, species), geneNums, adjInfo)
 
+    ######### Distances Matrix ##########
+
+    matricies = []
+    distancesDict = initializeMagicalMatrix(groupsD, tree, famSpAdjD)
+    matricies.append(np.array(distancesDict.items(), dtype=dtype))
+
+    distancesM1, groupsM1 = mergeGroups(distancesDict, groupsD, 0, 0, tree, famSpAdjD))
+    matricies.append(np.array(distancesDict.items(), dtype=dtype))
+
+    for index, matrix in enumerate(matricies):
+        fig, ax = plt.subplots()
+        heatmap = ax.pcolor(matrix, cmap=plt.cm.Blues)#, edgecolors='k')
+
+        # put the major ticks at the middle of each cell
+        ax.set_xticks(np.arange(matrix.shape[0])+0.5, minor=False)
+        ax.set_yticks(np.arange(matrix.shape[1])+0.5, minor=False)
+
+        cbar = plt.colorbar(heatmap)
+
+        # want a more natural, table-like display
+        ax.invert_yaxis()
+        ax.xaxis.tick_top()
+
+        ax.set_xticklabels([''], minor=False, fontsize=6)
+        ax.set_yticklabels([''], minor=False, fontsize=6)
+        
+        plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
+        plt.close(fig)
+    
     
 
 
@@ -533,17 +564,16 @@ def initializeMagicalMatrix(groups, tree, famSpAdjD):
 
     for x in range(0, len(groups)):
         for y in range(x+1, len(groups)):
-            distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD)
+            if groups[x] != None and groups[y] != None:
+                distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD)
 
     return distancesD
 
 def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD):
 
-    # oldGroups = deepcopy(groups)
     startOver = False
 
     recalculate = []
-    newGroups = []
     for x in range(0, len(groups)):
         for y in range(x+1, len(groups)):
             if x not in recalculate and y not in recalculate and distancesD[(x,y)] != None:
@@ -553,15 +583,19 @@ def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD):
                         groups[y] = None
                         recalculate.extend([x,y])
 
+    if len(recalculate) > int(len(distancesD)/3):
+        distancesD = initializeMagicalMatrix(groups, tree, famSpAdjD)
 
-    xss = recalculate[0::2]
-    yss = recalculate[1::2]
+    else:
+        xss = recalculate[0::2]
+        yss = recalculate[1::2]
 
-    for coord in distancesD.iterkeys():
-        if coord[1] in yss:
-            del distancesD[coord]
-        elif coord[0] in xss:
-            distancesD[coord] = calcDist(groups[coord[0]], groups[coord[1]], tree, famSpAdjD)
+        for coord in distancesD.iterkeys():
+            if coord[1] in yss:
+                del distancesD[coord]
+            elif coord[0] in xss:
+                distancesD[coord] = calcDist(groups[coord[0]], groups[coord[1]], tree, famSpAdjD)
+
 
     return distancesD, groups
 
@@ -571,22 +605,22 @@ def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD):
 def calcDist(groupA, groupB, tree, famSpAdjD):
     '''Compares the dupDel model and order cost of two groups'''
 
-
-    ddDiff = calcDiff(groupA.getDuplications(), groupB.getDuplications())+calcDiff(groupA.getDeletions(), groupB.getDeletions())
+    # mrcaDif = 
+    # ddDiff = calcDiff(groupA.getDuplications(), groupB.getDuplications())+calcDiff(groupA.getDeletions(), groupB.getDeletions())
 
     ordCost = groupCost(groupA, groupB, tree, famSpAdjD)
+    return (0, ordCost)
+    # return (ddDiff, ordCost)
 
-    return (ddDiff, ordCost)
-
-def calcDiff(la, lb, n):
-    '''Take two duplication or deletions models and compare them.
-    Score starts at zero, and increases by 1 for each event difference.'''
-    diff = 0
-    for i in range(0,2*n-1):
-        for x in range(0, len(i)):
-            if la[i][x][0] != lb[i][x][0] or set(la[i][x][1]) != set(lb[i][x][1]):
-                diff += 1
-    return diff
+# def calcDiff(la, lb, n):
+#     '''Take two duplication or deletions models and compare them.
+#     Score starts at zero, and increases by 1 for each event difference.'''
+#     diff = 0
+#     for i in range(0,2*n-1):
+#         for x in range(0, len(i)):
+#             if la[i][x][0] != lb[i][x][0] or set(la[i][x][1]) != set(lb[i][x][1]):
+#                 diff += 1
+#     return diff
 
 
 def initializeGroups(familyData):

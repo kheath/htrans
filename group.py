@@ -55,10 +55,12 @@ class Group:
         return True
 
     def updateFront(self, famNum):
+        self.families.insert(0, famNum)
         self.front = famNum
         return True
 
     def updateBack(self, famNum):
+        self.families.append(famNum)
         self.back = famNum
         return True
 
