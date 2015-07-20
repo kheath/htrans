@@ -76,7 +76,7 @@ class Group:
         # Combine family lists in correct order
         if direction == 0:
             if len(group.getFamilies()) > 1:
-                self.families = group.getFamilies().reverse()+self.families
+                self.families = list(reversed(group.getFamilies()))+self.families
             else:
                 self.families = group.getFamilies()+self.families
             self.front = group.getBack()
@@ -88,7 +88,7 @@ class Group:
             self.front = group.getFront()
         elif directions == 3:
             if len(group.getFamilies()) > 1:
-                self.families = self.families+group.getFamilies().reverse()
+                self.families = self.families+list(reversed(group.getFamilies()))
             else:
                 self.families = self.families+group.getFamilies()
             self.back = group.getFront()

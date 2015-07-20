@@ -4,6 +4,7 @@ import mrca,sys,ast,group
 
 def main(argv):
     tree=mrca.readTree(argv[0])
+    '''
     originTree=tree
     cost=int(argv[1])
     FamSpAdjDFile=argv[2]
@@ -15,12 +16,17 @@ def main(argv):
     
         
     pair=(ast.literal_eval(argv[3]))
+    '''
     groupL=initializeGroups(readFamilies('dupDelAll.txt'))
-    groupA=groupL[1221]
-    groupB=groupL[1220]
-    famGroupD=setFamGroupDict(groupL)
-    result=pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,pair,{})
-    print result
+    
+    groupA=groupL[1228]
+    groupB=groupL[4360]
+    #famGroupD=setFamGroupDict(groupL)
+    #result=pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,pair,{})
+    #print result
+    testMove=moveMRCAcost(tree,groupA.getMrcag(),groupB.getMrcag())
+    print testMove
+    #print groupA.getMrcag(),groupB.getMrcag()
 
 def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,pair,memo):
     '''groupA and groupB are actual groups'''
@@ -34,23 +40,31 @@ def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,
             repA=representative(groupAFam,tree[0],pair[0],FamSpAdjD)
             repB=representative(groupBFam,tree[0],pair[1],FamSpAdjD)
             adjFList=FamSpAdjD[(repA,tree[0])]
-            rAdjFList={}
+            
+            rAdjFList=[]
+            
             for adjF in adjFList:
                 currentGroupID=famGroupD[adjF]
+                
                 currentGroup=groupL[currentGroupID]
                 currentHtrans=currentGroup.getMrcag()
+                
                 if lowerThanOrigin(subtree(originHtrans,originTree),originHtrans,currentHtrans) == True:
+                    print "!",adjF,tree[0]
                     otherEndFam=otherEnd(currentGroup.getFamilies(),adjF,tree[0],FamSpAdjD)
+                    
                     otherEndAdjFL=FamSpAdjD[(otherEndFam,tree[0])]
                     for otherEndAdjF in otherEndAdjFL:
-                        if (otherEndAdjF != repA) and (otherEndAdj not in currentGroup.getFamilies()):
+                        if (otherEndAdjF != repA) and (otherEndAdjF not in currentGroup.getFamilies()):
                             rAdjFList.append(otherEndAdjF)
                 else:
                     rAdjFList.append(adjF)
             if repB in rAdjFList:
                 return 0
             else:
-                return cost                                                                
+                print "node:",tree[0]
+                return cost
+                
     elif (tree,pair) in memo: return memo[(tree,pair)]
     else: #General case: At a subtree:
         leftLeaves=leafList(tree[1])
@@ -117,10 +131,11 @@ def otherEnd(group,fam,leaf,FamSpAdjD):
     
 
 def lowerThanOrigin(Tree,originNode,currentNode):
-    if Tree[1]==():
-        return False
-    elif Tree[0]==currentNode and Tree[0]!=originNode:
+    
+    if Tree[0]==currentNode and Tree[0]!=originNode:
         return True
+    elif Tree[1]==():
+        return False
     else:
         return lowerThanOrigin(Tree[1],originNode,currentNode) or lowerThanOrigin(Tree[2],originNode,currentNode)
         
@@ -148,7 +163,7 @@ def representative(group,leaf,fam,FamSpAdjD):
                 
 def descendantNodes(node, Tree):
     '''Returns the descendant nodes of a given node.'''
-    return leafList(subtree(node, Tree))
+    return nodeList(subtree(node, Tree))
 
 def find(node, Tree):
     ''' Returns True if node is in the Tree and False otherwise. '''
@@ -174,9 +189,35 @@ def subtree(node, Tree):
         return Tree
     elif find(node, Tree[1]) == True:
         return subtree(node, Tree[1])
-    else:
+    elif find(node, Tree[2]) == True:
         return subtree(node, Tree[2])
+    else:
+        return None
 
+def findMRCA(tree,mrcaA,mrcaB):
+    if (mrcaA == tree[0]) or (mrcaB==tree[0]):
+        return tree[0]
+    elif ((mrcaA in descendantNodes(tree[1][0],tree)) and (mrcaB in descendantNodes(tree[2][0],tree))) or ((mrcaB in descendantNodes(tree[1][0],tree)) and (mrcaA in descendantNodes(tree[2][0],tree))):
+        return tree[0]
+    elif (mrcaA in descendantNodes(tree[1][0],tree)) and (mrcaB in descendantNodes(tree[1][0],tree)):
+        return findMRCA(tree[1],mrcaA,mrcaB)
+    else:
+        return findMRCA(tree[2],mrcaA,mrcaB)
+        
+
+def moveMRCAcost(tree,mrcaA,mrcaB):
+    commonMRCA=findMRCA(tree,mrcaA,mrcaB)
+    mrcaAcost=subMoveMRCAcost(tree,commonMRCA,mrcaA)
+    mrcaBcost=subMoveMRCAcost(tree,commonMRCA,mrcaB)
+    return (mrcaAcost+mrcaBcost,commonMRCA)
+
+def subMoveMRCAcost(tree,commonMRCA,mrcaX):
+    if commonMRCA==mrcaX:
+        return 0
+    elif mrcaX in descendantNodes(subtree(commonMRCA,tree)[1][0],tree):
+        return 1+subMoveMRCAcost(tree,subtree(commonMRCA,tree)[1][0],mrcaX)
+    else:
+        return 1+subMoveMRCAcost(tree,subtree(commonMRCA,tree)[2][0],mrcaX)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

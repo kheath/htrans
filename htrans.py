@@ -4,7 +4,7 @@ Wrapper for htrans
 
 import mrca, sys, io, ast, math, os, argparse
 from group import Group
-from orderCost1 import *
+# from orderCost1 import *
 from operator import itemgetter
 from copy import deepcopy
 from collections import Counter
@@ -15,13 +15,18 @@ from copy import deepcopy
 from os import path
 from functools import wraps
 import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
+# import matplotlib
+
 
 
 
 def main(argv):
-
-
+    # matplotlib.use()
+    plt.ioff()
+    # matplotlib.use('Agg')
     ############## ---- Parse Command line Arguments ---- ################
     parser = argparse.ArgumentParser()
     requiredNamed = parser.add_argument_group('required named arguments')
@@ -30,7 +35,7 @@ def main(argv):
     requiredNamed.add_argument('-d', '--database', help='File with species of interest (dbList.txt)', required=True)
     requiredNamed.add_argument('-g', '--geneOrder', help='Gene order file (geneOrder.txt)', required=True)
     requiredNamed.add_argument('-t', '--tree', help='Phylogenetic tree file (testATree)', required=True) 
-    requiredNamed.add_argument('-d', help='Deletion cost', type=int, required=True)
+    requiredNamed.add_argument('-b', help='Deletion cost', type=int, required=True)
     requiredNamed.add_argument('-c', help='Duplication cost', type=int, required=True) 
     requiredNamed.add_argument('-s', '--species', help='Number of species', type=int, required=True)
     requiredNamed.add_argument('-o', help='Orthologs files (orthologs.out)', required=True) 
@@ -39,6 +44,7 @@ def main(argv):
     args = parser.parse_args()
 
     ############## ---- processFamGenes ---- ################
+    print 'Processing families'
     gsMap, geneNums = readGeneSpeciesMap(args.map)  # Gene-Species map, and gene Numbers
     species = readSpecies(args.database)            # List of species we're looking at
     famD = sortFamData(args.families)               # Silix family data
@@ -48,49 +54,77 @@ def main(argv):
     adjInfo = adjacencyInfo(args.geneOrder, geneNums)   # Gene adjacency information
 
     ############## ---- dupDel ---- ################
+    print 'Calculating dupDel models'
 
-    fullTree = readTree(args.tree)                  # Phylogenetic tree
-    dupDelResults= dupDelAll(fullTree, famData, args.d, args.c, args.n)
+    tree = readTree(args.tree)                  # Phylogenetic tree
+    dupDelResults= dupDelAll(tree, famData, args.b, args.c, args.n)
 
     ############## ---- Group Cost ---- ################
+    print 'Making groups'
 
-    familyData = readFamilies('dupDelAll.txt')
+    familyData = readFamilies('dupDelSmaller.txt') #dupDelResults
     groupsD = initializeGroups(familyData)
-    famGroupD = setFamGroupDict(groupsD)
-    tree = mrca.readTree('testATree')
-    famSpAdjD = GFSdict(sortFamData(famD), gsMap, speciesDict(args.o, species), geneNums, adjInfo)
-
+    famGroupL = setFamGroupDict(groupsD)
+    # tree = readTree('testATree')
+    famSpAdjD = GFSdict(famD, gsMap, speciesDict(args.o, species), geneNums, adjInfo)
+    leafCache = memoLeafList(tree, {})
     ######### Distances Matrix ##########
+    print 'Calculating distances'
 
     matricies = []
-    distancesDict = initializeMagicalMatrix(groupsD, tree, famSpAdjD)
-    matricies.append(np.array(distancesDict.items(), dtype=dtype))
+    distancesDict = initializeMagicalMatrix(groupsD, tree, famSpAdjD, famGroupL, leafCache)
+    print 'Distances #1 done'
+    # matricies.append(makeArray(distancesDict, len(famGroupL)))
+    matricies.append(distancesDict)
 
-    distancesM1, groupsM1 = mergeGroups(distancesDict, groupsD, 0, 0, tree, famSpAdjD))
-    matricies.append(np.array(distancesDict.items(), dtype=dtype))
+    print 'Merging...'
+    count = 1
+    mergeMore = True
+    while mergeMore and count < 6:
+        print 'Merge #'+str(count)
+        distancesDict, groupsD, temp = mergeGroups(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache)
+        # matricies.append(makeArray(distancesDict, len(famGroupL)))
+        matricies.append(distancesDict)
+        if temp <= 1:
+            mergeMore = False
+        count+=1
 
-    for index, matrix in enumerate(matricies):
-        fig, ax = plt.subplots()
-        heatmap = ax.pcolor(matrix, cmap=plt.cm.Blues)#, edgecolors='k')
+    # print 'Making heatmaps'
+    # for index, matrix in enumerate(matricies):
+    #     print 'Heatmap #'+str(index)
+    #     # np.savetxt('heatmap'+str(index)+'.txt', matrix)
+    #     fig, ax = plt.subplots()
+    #     heatmap = ax.pcolor(matrix, cmap=plt.cm.Blues)#, edgecolors='k')
 
-        # put the major ticks at the middle of each cell
-        ax.set_xticks(np.arange(matrix.shape[0])+0.5, minor=False)
-        ax.set_yticks(np.arange(matrix.shape[1])+0.5, minor=False)
+    #     # put the major ticks at the middle of each cell
+    #     ax.set_xticks(np.arange(matrix.shape[0])+0.5, minor=False)
+    #     ax.set_yticks(np.arange(matrix.shape[1])+0.5, minor=False)
 
-        cbar = plt.colorbar(heatmap)
+    #     cbar = plt.colorbar(heatmap)
 
-        # want a more natural, table-like display
-        ax.invert_yaxis()
-        ax.xaxis.tick_top()
+    #     # want a more natural, table-like display
+    #     ax.invert_yaxis()
+    #     ax.xaxis.tick_top()
 
-        ax.set_xticklabels([''], minor=False, fontsize=6)
-        ax.set_yticklabels([''], minor=False, fontsize=6)
+    #     ax.set_xticklabels([''], minor=False, fontsize=6)
+    #     ax.set_yticklabels([''], minor=False, fontsize=6)
         
-        plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
-        plt.close(fig)
+    #     plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
+    #     plt.clf()
+ 
     
-    
+def makeArray(distancesD, size):
+    heat = np.zeros((size, size))
 
+    for (x,y), value in distancesD.iteritems():
+        if value == None:
+            heat[x,y] = 0.0
+            heat[y,x] = 0.0
+        else:
+            heat[x,y] = 1.0/(1.0+value[0][0])
+            heat[y,x] = 1.0/(1.0+value[0][0])
+
+    return heat
 
 
 ############## ---- geneSpecies Map -- IGNORE ---- ################
@@ -443,7 +477,6 @@ def memoize(func):
     def wrap(*args):
         if args not in cache:
             cache[args] = func(*args)
-            print cache
         return cache[args]
 
     return wrap
@@ -519,6 +552,16 @@ def leafList(Tree):
     else:
         return leafList(Tree[1])+leafList(Tree[2])
 
+def memoLeafList(tree, cache):
+    '''Builds a cache of leafList results for every subtree of the given tree'''
+    if tree[1] != () and tree[1] not in cache:
+        cache = memoLeafList(tree[1], cache)
+    if tree[2] != () and tree[2] not in cache:
+        cache = memoLeafList(tree[2], cache)
+    if tree not in cache:
+        cache[tree] = leafList(tree)
+    return cache
+
 def subtree(node, Tree):
     '''The function subtree() returns the subtree at the inputted node.'''
     if node == Tree[0]:
@@ -541,16 +584,16 @@ def descendantFam(node,Tree,famT):
 
 def dupDelAll(tree, familyTuples, delCost, dupCost, currentcopynum):
 
-    results=[]
+    results=[None]
     it = iter(familyTuples[1:])
     while True:
         try:
             fam = it.next()
         except:
             break
-        mrcaF = mrca(fullTree, fam)
-        sub = subtree(mrcaF, fullTree)
-        dupDelData.append((mrcaF, dupDel(sub, fam, delCost, dupCost, currentcopynum)))
+        mrcaF = mrca(tree, fam)
+        sub = subtree(mrcaF, tree)
+        results.append((mrcaF, dupDel(sub, fam, delCost, dupCost, currentcopynum)))
 
     return results
 ############## ---- END ---- ################
@@ -558,58 +601,62 @@ def dupDelAll(tree, familyTuples, delCost, dupCost, currentcopynum):
 
 ############## ---- Group Cost ---- ################
 
-def initializeMagicalMatrix(groups, tree, famSpAdjD):
+def initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache):
+    print 'Initializing distances matrix'
 
     distancesD = {}
 
-    for x in range(0, len(groups)):
+    for x in range(1, len(groups)):
         for y in range(x+1, len(groups)):
             if groups[x] != None and groups[y] != None:
-                distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD)
+                distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
 
     return distancesD
 
-def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD):
+def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache):
 
-    startOver = False
+    # print 'Merging groups'
+    # print len(groups), ' total groups'
 
     recalculate = []
-    for x in range(0, len(groups)):
+    for x in range(1, len(groups)):
         for y in range(x+1, len(groups)):
-            if x not in recalculate and y not in recalculate and distancesD[(x,y)] != None:
-                if distancesD[(x,y)][0] <= dCutoff and distancesD[(x,y)][1][0] <= oCutoff:
+            if x not in recalculate and y not in recalculate and (x,y) in distancesD:
+                if distancesD[(x,y)][0][0] <= dCutoff and distancesD[(x,y)][0][0] <= oCutoff:
                     if groups[x] != None and groups[y] != None:
-                        groups[x] = deepcopy(groups[x].mergeGroup(groups[y], distancesD[(x,y)][1][1]))
+                        groups[x].mergeGroup(groups[y], distancesD[(x,y)][0][1])
                         groups[y] = None
+                        famGroupL[y] = x
                         recalculate.extend([x,y])
 
     if len(recalculate) > int(len(distancesD)/3):
-        distancesD = initializeMagicalMatrix(groups, tree, famSpAdjD)
+        newDists = initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache)
 
     else:
         xss = recalculate[0::2]
         yss = recalculate[1::2]
 
-        for coord in distancesD.iterkeys():
-            if coord[1] in yss:
-                del distancesD[coord]
-            elif coord[0] in xss:
-                distancesD[coord] = calcDist(groups[coord[0]], groups[coord[1]], tree, famSpAdjD)
+        newDists = deepcopy(distancesD)
+        for (x,y) in distancesD.iterkeys():
+            if y in yss:
+                del newDists[(x,y)]
+            elif x in xss and groups[y] != None:
+                newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
 
 
-    return distancesD, groups
+    return newDists, groups, len(recalculate)/2
 
 
 
     
-def calcDist(groupA, groupB, tree, famSpAdjD):
+def calcDist(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache):
     '''Compares the dupDel model and order cost of two groups'''
 
     # mrcaDif = 
     # ddDiff = calcDiff(groupA.getDuplications(), groupB.getDuplications())+calcDiff(groupA.getDeletions(), groupB.getDeletions())
 
-    ordCost = groupCost(groupA, groupB, tree, famSpAdjD)
-    return (0, ordCost)
+    ordCost = groupCost(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache)
+    return ordCost
     # return (ddDiff, ordCost)
 
 # def calcDiff(la, lb, n):
@@ -664,15 +711,14 @@ def readFamilies(filename):
     return families
 
 
-def groupCost(groupA, groupB, tree, adjInfo):
+def groupCost(groupA, groupB, tree, adjInfo, famGroupL, groupD, leafCache):
     '''Find the cost of merging two groups'''
-
-    pairs = [(groupA.getFront()[0], groupB.getFront()[0]), (groupA.getBack()[0], groupB.getFront()[0]), 
-                (groupA.getFront()[0], groupB.getBack()[0]), (groupA.getBack()[0], groupB.getBack()[0])] 
+    pairs = [(groupA.getFront(), groupB.getFront()), (groupA.getBack(), groupB.getFront()), 
+                (groupA.getFront(), groupB.getBack()), (groupA.getBack(), groupB.getBack())] 
 
     costs = [] #float('inf')
     for index, adj in enumerate(pairs):
-        cost = pairOrderCost(tree, 1, adjInfo, groupA.getFamilies(), groupB.getFamilies(), adj, {})
+        cost = pairOrderCost(tree, tree, 1, adjInfo, famGroupL, groupD, groupA, groupB, adj, {}, leafCache)
         costs.append((cost, index))
 
     return sorted(costs, key=itemgetter(0,1))
@@ -719,7 +765,7 @@ def speciesDict(orthologs, speciesList):
                 line = f.readline()
             except:
                 break
-            dat = line.rsplit('\n').split()
+            dat = line.rstrip('\n').split()
             if len(dat) > 2:
                 break
             if dat[1] in speciesList:
@@ -765,6 +811,164 @@ def GFSdict(famNumGeneMap, geneSpeciesDict, speciesDict, geneDict, adjInfo):
         famSpAdjD[key] = adjacentFam
                     
     return famSpAdjD
+
+def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,pair,memo, leafCache):
+    '''groupA and groupB are actual groups'''
+    originHtrans=groupA.getMrcag()
+    groupAFam=groupA.getFamilies()
+    groupBFam=groupB.getFamilies()
+    if tree[1]==(): #base case: At a leaf:
+        if (remainFam(groupAFam,tree[0],FamSpAdjD) == []) or (remainFam(groupBFam,tree[0],FamSpAdjD) == []):
+            return 0
+        else:
+            repA=representative(groupAFam,tree[0],pair[0],FamSpAdjD)
+            repB=representative(groupBFam,tree[0],pair[1],FamSpAdjD)
+            adjFList=FamSpAdjD[(repA,tree[0])]
+            
+            rAdjFList=[]
+            
+            for adjF in adjFList:
+                currentGroupID=famGroupD[adjF]
+                
+                currentGroup=groupL[currentGroupID]
+                currentHtrans=currentGroup.getMrcag()
+                
+                if lowerThanOrigin(subtree(originHtrans,originTree),originHtrans,currentHtrans) == True:
+                    print "!",adjF,tree[0]
+                    otherEndFam=otherEnd(currentGroup.getFamilies(),adjF,tree[0],FamSpAdjD)
+                    
+                    otherEndAdjFL=FamSpAdjD[(otherEndFam,tree[0])]
+                    for otherEndAdjF in otherEndAdjFL:
+                        if (otherEndAdjF != repA) and (otherEndAdjF not in currentGroup.getFamilies()):
+                            rAdjFList.append(otherEndAdjF)
+                else:
+                    rAdjFList.append(adjF)
+            if repB in rAdjFList:
+                return 0
+            else:
+                print "node:",tree[0]
+                return cost
+                
+    elif (tree,pair) in memo: return memo[(tree,pair)]
+    else: #General case: At a subtree:
+        leftLeaves=leafCache(tree[1])
+        options = []
+        for leaf in leftLeaves:
+            if (pair[0],leaf) in FamSpAdjD:
+                adjacentFam=FamSpAdjD[(pair[0],leaf)]
+                for fam in adjacentFam:
+                    if (fam not in options) and (fam in groupBFam):
+                        options.append(fam)
+        if (pair[1] not in options): options.append(pair[1])
+        
+        
+        minLeftCost = float('inf')
+        for option in options:
+            leftSubCost=pairOrderCost(tree[1],originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,(pair[0],option),memo, leafCache)
+            if option == pair[1]:
+                leftCost=leftSubCost
+            else:
+                leftCost=cost+leftSubCost
+            #print leftCost
+            if leftCost < minLeftCost:
+                minLeftCost=leftCost
+        #print 'minLeftCost:',minLeftCost
+        
+        rightLeaves=leafCache(tree[2])
+        options = []
+        for leaf in rightLeaves:
+            if (pair[0],leaf) in FamSpAdjD:
+                adjacentFam=FamSpAdjD[(pair[0],leaf)]
+                for fam in adjacentFam:
+                    if (fam not in options) and (fam in groupBFam):
+                        options.append(fam)
+        
+        if (pair[1] not in options): options.append(pair[1])
+
+        minRightCost = float('inf')
+        for option in options:
+            rightSubCost=pairOrderCost(tree[2],originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,(pair[0],option),memo, leafCache)
+            if option == pair[1]:
+                rightCost=rightSubCost
+            else:
+                rightCost=cost+rightSubCost
+            if rightCost < minRightCost:
+                minRightCost=rightCost
+        #print 'minRightCost:', minRightCost
+    memo[(tree,pair)]= minLeftCost+minRightCost
+    return minLeftCost+minRightCost
+
+def otherEnd(group,fam,leaf,FamSpAdjD):
+    if len(group)==1:
+        return group[0]
+    else:
+        if fam == group[0]:
+            if (group[-1],leaf) in FamSpAdjD:
+                return group[-1]
+            else:
+                return otherEnd(group[:-2],fam,leaf,FamSpAdjD)
+        else:
+            if (group[0],leaf) in FamSpAdjD:
+                return group[0]
+            else:
+                return otherEnd(group[1:],fam,leaf,FamSpAdjD)
+    
+
+def lowerThanOrigin(Tree,originNode,currentNode):
+    
+    if Tree[0]==currentNode and Tree[0]!=originNode:
+        return True
+    elif Tree[1]==():
+        return False
+    else:
+        return lowerThanOrigin(Tree[1],originNode,currentNode) or lowerThanOrigin(Tree[2],originNode,currentNode)
+        
+
+def remainFam(group,leaf,FamSpAdjD):
+    result=[]
+    for fam in group:
+        if (fam,leaf) in FamSpAdjD:
+            result.append(fam)
+    return result
+                
+def representative(group,leaf,fam,FamSpAdjD):
+    if (fam,leaf) in FamSpAdjD:
+        return fam
+    else:
+        if fam==group[0]:
+            return representative(group[1:],leaf,group[1],FamSpAdjD)
+        elif fam==group[-1]:
+            return representative(group[:-1],leaf,group[-2],FamSpAdjD)
+        else:
+            for family in group:
+                if (family,leaf) in FamSpAdjD:
+                    return family
+            return None
+
+def findMRCA(tree,mrcaA,mrcaB):
+    if (mrcaA == tree[0]) or (mrcaB==tree[0]):
+        return tree[0]
+    elif ((mrcaA in descendantNodes(tree[1][0],tree)) and (mrcaB in descendantNodes(tree[2][0],tree))) or ((mrcaB in descendantNodes(tree[1][0],tree)) and (mrcaA in descendantNodes(tree[2][0],tree))):
+        return tree[0]
+    elif (mrcaA in descendantNodes(tree[1][0],tree)) and (mrcaB in descendantNodes(tree[1][0],tree)):
+        return findMRCA(tree[1],mrcaA,mrcaB)
+    else:
+        return findMRCA(tree[2],mrcaA,mrcaB)
+        
+
+def moveMRCAcost(tree,mrcaA,mrcaB):
+    commonMRCA=findMRCA(tree,mrcaA,mrcaB)
+    mrcaAcost=subMoveMRCAcost(tree,commonMRCA,mrcaA)
+    mrcaBcost=subMoveMRCAcost(tree,commonMRCA,mrcaB)
+    return (mrcaAcost+mrcaBcost,commonMRCA)
+
+def subMoveMRCAcost(tree,commonMRCA,mrcaX):
+    if commonMRCA==mrcaX:
+        return 0
+    elif mrcaX in descendantNodes(subtree(commonMRCA,tree)[1][0],tree):
+        return 1+subMoveMRCAcost(tree,subtree(commonMRCA,tree)[1][0],mrcaX)
+    else:
+        return 1+subMoveMRCAcost(tree,subtree(commonMRCA,tree)[2][0],mrcaX)
 
 
 if __name__ == "__main__":
