@@ -2,7 +2,7 @@
 Wrapper for htrans
 '''
 
-import mrca, sys, io, ast, math, os, argparse
+import mrca, sys, io, ast, math, os, argparse, time
 from group import Group
 # from orderCost1 import *
 from operator import itemgetter
@@ -72,8 +72,10 @@ def main(argv):
     print 'Calculating distances'
 
     matricies = []
+    start = time.clock()
     distancesDict = initializeMagicalMatrix(groupsD, tree, famSpAdjD, famGroupL, leafCache)
-    print 'Distances #1 done'
+    end = time.clock()
+    print 'Distances #1 done in '+str(end-start)+' seconds'
     # matricies.append(makeArray(distancesDict, len(famGroupL)))
     matricies.append(distancesDict)
     # return True
@@ -84,6 +86,7 @@ def main(argv):
         # famGroupL = setFamGroupDict()
         print 'Merge #'+str(count)
         distancesDict, groupsD, famGroupL, temp = mergeGroups(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache)
+        print 'Groups remaining = ', numGroups(groupsD)
         # matricies.append(makeArray(distancesDict, len(famGroupL)))
         matricies.append(distancesDict)
         if temp <= 1:
@@ -114,7 +117,15 @@ def main(argv):
         plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
         plt.clf()
  
-    
+
+def numGroups(groups):
+    '''Returns the number of groups that are not None'''
+    count = 0
+    for group in groups:
+        if group != None:
+            count+=1
+    return int(count)
+
 def makeArray(distancesD, size):
     heat = np.zeros((size, size))
 
@@ -602,13 +613,24 @@ def dupDelAll(tree, familyTuples, delCost, dupCost, currentcopynum):
 
 def initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache):
     print 'Initializing distances matrix'
-
+    numG = numGroups(groups)
+    total = int((numG*(numG-1))/2)
+    fiveP = int(total/20)
+    oneP = int(total/100)
     distancesD = {}
-
+    progress = 0
+    part = 0
+    print 'Updates every '+str(oneP)+' calculations.'
     for x in range(1, len(groups)):
         for y in range(x+1, len(groups)):
             if groups[x] != None and groups[y] != None:
                 distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
+                progress += 1
+            if progress == fiveP:
+                part+=1
+                print str(part)+'%'
+                # sys.stdout.write(str(part)+'%...')
+                progress = 0
 
     return distancesD
 
@@ -645,28 +667,52 @@ def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL
 
     return newDists, groups, famGroupL, len(recalculate)/2
 
+def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache):
+    '''Merge two groups greedy style, then recalculate'''
+    numG = numGroups(groups)
+    while calcs < numGroups/100:
+        reX = 0
+        reY = 0
+        recalc = False
+        for x in range(1, len(groups)):
+            if recalc == True:
+                break
+            for y in range(x+1, len(groups)):
+                if recalc == True:
+                    break
+                if x not in recalculate and y not in recalculate and (x,y) in distancesD:
+                    if distancesD[(x,y)][0][0] <= dCutoff and distancesD[(x,y)][0][0] <= oCutoff:
+                        if groups[x] != None and groups[y] != None:
+                            groups[x].mergeGroup(groups[y], distancesD[(x,y)][0][1])
+                            groups[y] = None
+                            famGroupL[y] = x
+                            reX = x
+                            reY = y
+                            recalc = True
+
+
+        newDists = deepcopy(distancesD)
+        for (x,y) in distancesD.iterkeys():
+            if y == reY:
+                del newDists[(x,y)]
+            elif x == reX and groups[y] != None:
+                newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
+                calcs += 1
+
+
+    return newDists, groups, famGroupL, len(recalculate)/2
 
 
     
 def calcDist(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache):
     '''Compares the dupDel model and order cost of two groups'''
 
-    # mrcaDif = 
-    # ddDiff = calcDiff(groupA.getDuplications(), groupB.getDuplications())+calcDiff(groupA.getDeletions(), groupB.getDeletions())
+    cost = 10
 
-    ordCost = groupCost(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache)
-    return ordCost
-    # return (ddDiff, ordCost)
-
-# def calcDiff(la, lb, n):
-#     '''Take two duplication or deletions models and compare them.
-#     Score starts at zero, and increases by 1 for each event difference.'''
-#     diff = 0
-#     for i in range(0,2*n-1):
-#         for x in range(0, len(i)):
-#             if la[i][x][0] != lb[i][x][0] or set(la[i][x][1]) != set(lb[i][x][1]):
-#                 diff += 1
-#     return diff
+    # mrcaCost = moveMRCAcost(tree, groupA.getMrcag(), groupB.getMrcag())
+    if groupA.getMrcag() == groupB.getMrcag():
+        cost = groupCost(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache)
+    return cost
 
 
 def initializeGroups(familyData):
