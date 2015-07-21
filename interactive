@@ -1,0 +1,13 @@
+gsMap, geneNums = readGeneSpeciesMap('geneSpeciesMap.txt')
+species = readSpecies('dbList.txt')
+famD = sortFamData('fam.out')
+famData = famInfo(famD, gsMap, species)
+adjInfo = adjacencyInfo('geneOrder.txt', geneNums)
+tree = readTree('testATree')
+familyData = readFamilies('dupDelSmall.txt')
+groupsD = initializeGroups(familyData)
+famGroupL = setFamGroupDict(groupsD)
+famSpAdjD = GFSdict(famD, gsMap, speciesDict('orthologs.out', species), geneNums, adjInfo)
+leafCache = memoLeafList(tree, {})
+
+4357, 4359

@@ -62,7 +62,7 @@ def main(argv):
     ############## ---- Group Cost ---- ################
     print 'Making groups'
 
-    familyData = readFamilies('dupDelSmaller.txt') #dupDelResults
+    familyData = dupDelResults #readFamilies('dupDelSmall.txt')
     groupsD = initializeGroups(familyData)
     famGroupL = setFamGroupDict(groupsD)
     # tree = readTree('testATree')
@@ -76,51 +76,50 @@ def main(argv):
     print 'Distances #1 done'
     # matricies.append(makeArray(distancesDict, len(famGroupL)))
     matricies.append(distancesDict)
-
+    # return True
     print 'Merging...'
     count = 1
     mergeMore = True
-    while mergeMore and count < 6:
+    while mergeMore and count < 4:
+        # famGroupL = setFamGroupDict()
         print 'Merge #'+str(count)
-        distancesDict, groupsD, temp = mergeGroups(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache)
+        distancesDict, groupsD, famGroupL, temp = mergeGroups(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache)
         # matricies.append(makeArray(distancesDict, len(famGroupL)))
         matricies.append(distancesDict)
         if temp <= 1:
             mergeMore = False
         count+=1
 
-    # print 'Making heatmaps'
-    # for index, matrix in enumerate(matricies):
-    #     print 'Heatmap #'+str(index)
-    #     # np.savetxt('heatmap'+str(index)+'.txt', matrix)
-    #     fig, ax = plt.subplots()
-    #     heatmap = ax.pcolor(matrix, cmap=plt.cm.Blues)#, edgecolors='k')
+    print 'Making heatmaps'
+    for index, matrixD in enumerate(matricies):
+        print 'Heatmap #'+str(index)
+        matrix = makeArray(matrixD, len(famGroupL))
+        # np.savetxt('heatmap'+str(index)+'.txt', matrix)
+        fig, ax = plt.subplots()
+        heatmap = ax.pcolor(matrix, cmap=plt.cm.Blues)#, edgecolors='k')
 
-    #     # put the major ticks at the middle of each cell
-    #     ax.set_xticks(np.arange(matrix.shape[0])+0.5, minor=False)
-    #     ax.set_yticks(np.arange(matrix.shape[1])+0.5, minor=False)
+        # put the major ticks at the middle of each cell
+        ax.set_xticks(np.arange(matrix.shape[0])+0.5, minor=False)
+        ax.set_yticks(np.arange(matrix.shape[1])+0.5, minor=False)
 
-    #     cbar = plt.colorbar(heatmap)
+        cbar = plt.colorbar(heatmap)
 
-    #     # want a more natural, table-like display
-    #     ax.invert_yaxis()
-    #     ax.xaxis.tick_top()
+        # want a more natural, table-like display
+        ax.invert_yaxis()
+        ax.xaxis.tick_top()
 
-    #     ax.set_xticklabels([''], minor=False, fontsize=6)
-    #     ax.set_yticklabels([''], minor=False, fontsize=6)
+        ax.set_xticklabels([''], minor=False, fontsize=6)
+        ax.set_yticklabels([''], minor=False, fontsize=6)
         
-    #     plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
-    #     plt.clf()
+        plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
+        plt.clf()
  
     
 def makeArray(distancesD, size):
     heat = np.zeros((size, size))
 
     for (x,y), value in distancesD.iteritems():
-        if value == None:
-            heat[x,y] = 0.0
-            heat[y,x] = 0.0
-        else:
+        if value != None:
             heat[x,y] = 1.0/(1.0+value[0][0])
             heat[y,x] = 1.0/(1.0+value[0][0])
 
@@ -644,7 +643,7 @@ def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL
                 newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
 
 
-    return newDists, groups, len(recalculate)/2
+    return newDists, groups, famGroupL, len(recalculate)/2
 
 
 
@@ -711,17 +710,26 @@ def readFamilies(filename):
     return families
 
 
-def groupCost(groupA, groupB, tree, adjInfo, famGroupL, groupD, leafCache):
+def groupCost(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache):
     '''Find the cost of merging two groups'''
     pairs = [(groupA.getFront(), groupB.getFront()), (groupA.getBack(), groupB.getFront()), 
                 (groupA.getFront(), groupB.getBack()), (groupA.getBack(), groupB.getBack())] 
 
     costs = [] #float('inf')
+    memo = {}
     for index, adj in enumerate(pairs):
-        cost = pairOrderCost(tree, tree, 1, adjInfo, famGroupL, groupD, groupA, groupB, adj, {}, leafCache)
-        costs.append((cost, index))
-
-    return sorted(costs, key=itemgetter(0,1))
+        if adj in memo:
+            costs.append((memo[adj], index))
+        else:
+            cost = pairOrderCost(tree, tree, 1, famSpAdjD, famGroupL, groupD, groupA, groupB, adj, {}, leafCache)
+            # if cost > 0:
+                # print (cost, index, groupA.getIdNum(), groupB.getIdNum())
+            costs.append((cost, index))
+            memo[adj] = cost
+    results = sorted(costs, key=itemgetter(0,1))
+    # if results[0][0] > 0:
+    #     print results
+    return results
 
 
 def mergeLists(order, l1, l2):
@@ -769,8 +777,8 @@ def speciesDict(orthologs, speciesList):
             if len(dat) > 2:
                 break
             if dat[1] in speciesList:
-                specD[dat[0]] = dat[1]
-                specD[dat[1]] = dat[0]
+                specD[int(dat[0])] = dat[1]
+                specD[dat[1]] = int(dat[0])
 
     return specD
 
@@ -819,8 +827,10 @@ def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,
     groupBFam=groupB.getFamilies()
     if tree[1]==(): #base case: At a leaf:
         if (remainFam(groupAFam,tree[0],FamSpAdjD) == []) or (remainFam(groupBFam,tree[0],FamSpAdjD) == []):
+
             return 0
         else:
+            # print "!"
             repA=representative(groupAFam,tree[0],pair[0],FamSpAdjD)
             repB=representative(groupBFam,tree[0],pair[1],FamSpAdjD)
             adjFList=FamSpAdjD[(repA,tree[0])]
@@ -834,7 +844,7 @@ def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,
                 currentHtrans=currentGroup.getMrcag()
                 
                 if lowerThanOrigin(subtree(originHtrans,originTree),originHtrans,currentHtrans) == True:
-                    print "!",adjF,tree[0]
+                    # print "!",adjF,tree[0]
                     otherEndFam=otherEnd(currentGroup.getFamilies(),adjF,tree[0],FamSpAdjD)
                     
                     otherEndAdjFL=FamSpAdjD[(otherEndFam,tree[0])]
@@ -846,12 +856,13 @@ def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,
             if repB in rAdjFList:
                 return 0
             else:
-                print "node:",tree[0]
+                # print "node:",tree[0]
                 return cost
                 
     elif (tree,pair) in memo: return memo[(tree,pair)]
     else: #General case: At a subtree:
-        leftLeaves=leafCache(tree[1])
+
+        leftLeaves = leafCache[tree[1]] #leafList(tree[1])
         options = []
         for leaf in leftLeaves:
             if (pair[0],leaf) in FamSpAdjD:
@@ -874,7 +885,7 @@ def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,
                 minLeftCost=leftCost
         #print 'minLeftCost:',minLeftCost
         
-        rightLeaves=leafCache(tree[2])
+        rightLeaves = leafCache[tree[2]] #leafList(tree[2])
         options = []
         for leaf in rightLeaves:
             if (pair[0],leaf) in FamSpAdjD:
