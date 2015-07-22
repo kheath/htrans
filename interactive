@@ -1,13 +1,25 @@
+from htrans import *
+
 gsMap, geneNums = readGeneSpeciesMap('geneSpeciesMap.txt')
 species = readSpecies('dbList.txt')
 famD = sortFamData('fam.out')
 famData = famInfo(famD, gsMap, species)
 adjInfo = adjacencyInfo('geneOrder.txt', geneNums)
 tree = readTree('testATree')
-familyData = readFamilies('dupDelSmall.txt')
+dupDelResults= dupDelAll(tree, famData, args.b, args.c, args.n)
+familyData = dupDelResults
 groupsD = initializeGroups(familyData)
 famGroupL = setFamGroupDict(groupsD)
 famSpAdjD = GFSdict(famD, gsMap, speciesDict('orthologs.out', species), geneNums, adjInfo)
 leafCache = memoLeafList(tree, {})
 
 4357, 4359
+
+sameMrca = []
+
+for x in range(1, len(groupsD)):
+    for y in range(x+1, len(groupsD)):
+        if groupsD[x].getMrcag() == groupsD[y].getMrcag():
+            sameMrca.append((x,y))
+
+

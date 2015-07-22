@@ -80,18 +80,22 @@ def main(argv):
     matricies.append(distancesDict)
     # return True
     print 'Merging...'
-    count = 1
-    mergeMore = True
-    while mergeMore and count < 4:
-        # famGroupL = setFamGroupDict()
-        print 'Merge #'+str(count)
-        distancesDict, groupsD, famGroupL, temp = mergeGroups(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache)
-        print 'Groups remaining = ', numGroups(groupsD)
-        # matricies.append(makeArray(distancesDict, len(famGroupL)))
-        matricies.append(distancesDict)
-        if temp <= 1:
-            mergeMore = False
-        count+=1
+    # count = 1
+    # mergeMore = True
+    # while mergeMore and count < 4:
+    #     # famGroupL = setFamGroupDict()
+    #     print 'Merge #'+str(count)
+    #     distancesDict, groupsD, famGroupL, temp = mergeGroups(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache)
+    #     print 'Groups remaining = ', numGroups(groupsD)
+    #     # matricies.append(makeArray(distancesDict, len(famGroupL)))
+    #     matricies.append(distancesDict)
+    #     if temp <= 1:
+    #         mergeMore = False
+    #     count+=1
+
+    distancesDict, groupsD, famGroupL, temp = mergeOneByOne(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache)
+    print 'Merged '+str(temp)+' times.'
+    matricies.append(distancesDict)
 
     print 'Making heatmaps'
     for index, matrixD in enumerate(matricies):
@@ -626,7 +630,7 @@ def initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache):
             if groups[x] != None and groups[y] != None:
                 distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
                 progress += 1
-            if progress == fiveP:
+            if progress == oneP:
                 part+=1
                 print str(part)+'%'
                 # sys.stdout.write(str(part)+'%...')
@@ -669,8 +673,10 @@ def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL
 
 def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache):
     '''Merge two groups greedy style, then recalculate'''
-    numG = numGroups(groups)
-    while calcs < numGroups/100:
+    # numG = numGroups(groups)
+    count = 0
+    recalc = True
+    while recalc:
         reX = 0
         reY = 0
         recalc = False
@@ -690,17 +696,18 @@ def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGrou
                             reY = y
                             recalc = True
 
+        if recalc:
+            newDists = deepcopy(distancesD)
+            for (x,y) in distancesD.iterkeys():
+                if y == reY:
+                    del newDists[(x,y)]
+                elif x == reX and groups[y] != None:
+                    newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
+                    calcs += 1
+            count+=1
 
-        newDists = deepcopy(distancesD)
-        for (x,y) in distancesD.iterkeys():
-            if y == reY:
-                del newDists[(x,y)]
-            elif x == reX and groups[y] != None:
-                newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
-                calcs += 1
 
-
-    return newDists, groups, famGroupL, len(recalculate)/2
+    return newDists, groups, famGroupL, count
 
 
     
@@ -712,7 +719,7 @@ def calcDist(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache):
     # mrcaCost = moveMRCAcost(tree, groupA.getMrcag(), groupB.getMrcag())
     if groupA.getMrcag() == groupB.getMrcag():
         cost = groupCost(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache)
-    return cost
+    return ((cost))
 
 
 def initializeGroups(familyData):
