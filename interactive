@@ -1,12 +1,11 @@
 from htrans import *
-
 gsMap, geneNums = readGeneSpeciesMap('geneSpeciesMap.txt')
 species = readSpecies('dbList.txt')
 famD = sortFamData('fam.out')
 famData = famInfo(famD, gsMap, species)
 adjInfo = adjacencyInfo('geneOrder.txt', geneNums)
 tree = readTree('testATree')
-dupDelResults= dupDelAll(tree, famData, args.b, args.c, args.n)
+dupDelResults= dupDelAll(tree, famData, 3, 5, 1)
 familyData = dupDelResults
 groupsD = initializeGroups(familyData)
 famGroupL = setFamGroupDict(groupsD)

@@ -18,6 +18,9 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import resource
+import gc
+import cPickle as pickle
 # import matplotlib
 
 
@@ -62,22 +65,43 @@ def main(argv):
     ############## ---- Group Cost ---- ################
     print 'Making groups'
 
-    familyData = dupDelResults #readFamilies('dupDelSmall.txt')
-    groupsD = initializeGroups(familyData)
+    familyData = dupDelResults #readFamilies('dupDelSmall.txt') # Only use the first half of families
+    groupsD = initializeGroups(familyData)  
     famGroupL = setFamGroupDict(groupsD)
     # tree = readTree('testATree')
     famSpAdjD = GFSdict(famD, gsMap, speciesDict(args.o, species), geneNums, adjInfo)
     leafCache = memoLeafList(tree, {})
-    ######### Distances Matrix ##########
-    print 'Calculating distances'
 
-    matricies = []
-    start = time.clock()
-    distancesDict = initializeMagicalMatrix(groupsD, tree, famSpAdjD, famGroupL, leafCache)
-    end = time.clock()
-    print 'Distances #1 done in '+str(end-start)+' seconds'
-    # matricies.append(makeArray(distancesDict, len(famGroupL)))
-    matricies.append(distancesDict)
+    print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
+    ######### Distances Matrix ##########
+    # print 'Calculating distances'
+
+    # matricies = []
+    try:
+        print 'Reading in distances from file'
+        start = time.clock()
+        distancesDict = readPickle('initialDistances.pickle')
+        end = time.clock()
+        print 'Reading the pickle took '+str(end-start)+' seconds.'
+    except:
+        print 'Calculating distances for the first time.'
+        start = time.clock()
+        distancesDict = initializeMagicalMatrix(groupsD, tree, famSpAdjD, famGroupL, leafCache)
+        end = time.clock()
+        print 'Distances #1 done in '+str(end-start)+' seconds'
+        print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
+        try:
+            writePickle(distancesDict, 'initialDistances.pickle')
+        except:
+            print 'Failed to write distances to pickle.'
+    # print 'Memory usage: %s (kb)' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # start = time.clock()
+    # distancesDict = readPickle('initialDistances.pickle')
+    # end = time.clock()
+    # print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
+    
+    # matricies.append(distancesDict)
+    print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
     # return True
     print 'Merging...'
     # count = 1
@@ -93,33 +117,41 @@ def main(argv):
     #         mergeMore = False
     #     count+=1
 
-    distancesDict, groupsD, famGroupL, temp = mergeOneByOne(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache)
+    distancesDict, groupsD, famGroupL, temp = mergeWrapper(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache, 400, 10000)
     print 'Merged '+str(temp)+' times.'
-    matricies.append(distancesDict)
+    print 'There are '+str(numGroups(groupsD))+' remaining \n'
+    print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
+    # matricies.append(distancesDict)
 
-    print 'Making heatmaps'
-    for index, matrixD in enumerate(matricies):
-        print 'Heatmap #'+str(index)
-        matrix = makeArray(matrixD, len(famGroupL))
-        # np.savetxt('heatmap'+str(index)+'.txt', matrix)
-        fig, ax = plt.subplots()
-        heatmap = ax.pcolor(matrix, cmap=plt.cm.Blues)#, edgecolors='k')
+    with open('groupsL.txt', 'w+') as f:
+        for group in groupsD:
+            f.write(str(group.getIdNum())+'\t'+str(group.getMrcag())+'\t'+str(group.getFamilies())+'\n')
 
-        # put the major ticks at the middle of each cell
-        ax.set_xticks(np.arange(matrix.shape[0])+0.5, minor=False)
-        ax.set_yticks(np.arange(matrix.shape[1])+0.5, minor=False)
 
-        cbar = plt.colorbar(heatmap)
+    # print 'Making heatmaps'
+    # for index, matrixD in enumerate(matricies):
+    #     print 'Heatmap #'+str(index)
+    #     print 'Memory usage: %s (kb)' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    #     matrix = makeArray(matrixD, len(famGroupL))
+    #     # np.savetxt('heatmap'+str(index)+'.txt', matrix)
+    #     fig, ax = plt.subplots()
+    #     heatmap = ax.pcolor(matrix, cmap=plt.cm.Blues)#, edgecolors='k')
 
-        # want a more natural, table-like display
-        ax.invert_yaxis()
-        ax.xaxis.tick_top()
+    #     # put the major ticks at the middle of each cell
+    #     ax.set_xticks(np.arange(matrix.shape[0])+0.5, minor=False)
+    #     ax.set_yticks(np.arange(matrix.shape[1])+0.5, minor=False)
 
-        ax.set_xticklabels([''], minor=False, fontsize=6)
-        ax.set_yticklabels([''], minor=False, fontsize=6)
+    #     cbar = plt.colorbar(heatmap)
+
+    #     # want a more natural, table-like display
+    #     ax.invert_yaxis()
+    #     ax.xaxis.tick_top()
+
+    #     ax.set_xticklabels([''], minor=False, fontsize=6)
+    #     ax.set_yticklabels([''], minor=False, fontsize=6)
         
-        plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
-        plt.clf()
+    #     plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
+        # plt.clf()
  
 
 def numGroups(groups):
@@ -139,6 +171,40 @@ def makeArray(distancesD, size):
             heat[y,x] = 1.0/(1.0+value[0][0])
 
     return heat
+
+def writeDistances(dists, outfile):
+    '''Write out distance matrix to text file'''
+    with open(outfile, 'w+') as f:
+        for key, value in dists.iteritems():
+            f.write(str(key)+'\t'+str(value)+'\n')
+    return True
+
+def writePickle(dists, outfile):
+    '''Write out dictionary as a json file'''
+    with open(outfile, 'wb') as handle:
+        pickle.dump(dists, handle, pickle.HIGHEST_PROTOCOL)
+    return True
+
+def readPickle(infile):
+    '''Read in json file as dictionary'''
+    with open(infile, 'rb') as handle:
+        return pickle.load(handle)
+  
+
+def readDistances(infile):
+    '''Read in the distance matrix saved as a text file'''
+    distsD = {}
+    with open(infile, 'r') as f:
+        while True:
+            line = f.readline()
+            if not line:
+                break
+            ln = line.rstrip().split('\t')
+            distsD[ast.literal_eval(ln[0])] = ast.literal_eval(ln[1])
+
+    return distsD
+
+
 
 
 ############## ---- geneSpecies Map -- IGNORE ---- ################
@@ -671,55 +737,115 @@ def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL
 
     return newDists, groups, famGroupL, len(recalculate)/2
 
+def mergeWrapper(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache, itsPerRecalc, limit):
+    '''Wrapper function for mergeOneByOne.
+    Takes care of repeated iterations and recalculating the full matrix every so often.
+    '''
+
+    mergeMore = True
+    iterations = 0
+    count = 0
+    count2 = 0
+    onePer = limit/100
+    progress = 0
+    while mergeMore and count < limit:
+        start = time.clock()
+        distancesD, groups, famGroupL, mergeMore = mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache)
+        end = time.clock()
+        print 'Merge '+str(count)+' took '+str(end-start)+'seconds.\n'
+
+        iterations += 1
+        count += 1
+        count2 += 1
+        if iterations == itsPerRecalc:
+            iterations = 0
+            print 'Recalculating the full matrix'
+            distancesD = initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache)
+            # print 'Keeping track of the following for garbage collection: '
+            # print gc.get_objects()
+            # gc.collect()
+        if count2 == onePer:
+            progress += 1
+            print str(progress)+'%'
+            count2 = 0
+            print 'Number of groups left = '+str(numGroups(groups))
+
+
+    return distancesD, groups, famGroupL, count
+
+
+
+
+
 def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache):
     '''Merge two groups greedy style, then recalculate'''
     # numG = numGroups(groups)
-    count = 0
-    recalc = True
-    while recalc:
-        reX = 0
-        reY = 0
-        recalc = False
-        for x in range(1, len(groups)):
+    # recalc = True
+    # while recalc:
+    reX = 0
+    reY = 0
+    recalc = False
+    start = time.clock()
+    for x in range(1, len(groups)):
+        if recalc == True:
+            break
+        for y in range(x+1, len(groups)):
             if recalc == True:
                 break
-            for y in range(x+1, len(groups)):
-                if recalc == True:
-                    break
-                if x not in recalculate and y not in recalculate and (x,y) in distancesD:
-                    if distancesD[(x,y)][0][0] <= dCutoff and distancesD[(x,y)][0][0] <= oCutoff:
-                        if groups[x] != None and groups[y] != None:
-                            groups[x].mergeGroup(groups[y], distancesD[(x,y)][0][1])
-                            groups[y] = None
-                            famGroupL[y] = x
-                            reX = x
-                            reY = y
-                            recalc = True
+            if (x,y) in distancesD:
+                if distancesD[(x,y)][0][0] <= dCutoff and distancesD[(x,y)][0][0] <= oCutoff:
+                    if groups[x] != None and groups[y] != None:
+                        print 'Merging groups '+str(x)+' and '+str(y)
+                        groups[x].mergeGroup(groups[y], distancesD[(x,y)][0][1])
+                        groups[y] = None
+                        famGroupL[y] = x
+                        reX = x
+                        reY = y
+                        recalc = True
 
-        if recalc:
-            newDists = deepcopy(distancesD)
-            for (x,y) in distancesD.iterkeys():
-                if y == reY:
-                    del newDists[(x,y)]
-                elif x == reX and groups[y] != None:
-                    newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
-                    calcs += 1
-            count+=1
+    end = time.clock()
+    print 'Finding and merging took '+str(end-start)+' seconds'
 
+    if recalc:
+        print 'Recalculating...'
+        newDists = [(reX, y) for y in range(reX+1, len(famGroupL)) if y != reY and groups[y] != None]
+        # print 'newDists: '+str(newDists)
+        delDists = [(x, reY) for x in range(1, reY) if groups[x] != None]
+        # print 'delDists: '+str(delDists)
+        # for (x,y) in distancesD.iterkeys():
+        #     if y == reY:
+        #         delDists.append((x,y))
+        #     elif x == reX and groups[y] != None:
+        #         newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
+        start = time.clock()
+        for key in delDists:
+            del distancesD[key]
+        end = time.clock()
+        # print 'Deleting keys took '+str(end-start)+' seconds'
 
-    return newDists, groups, famGroupL, count
+        start = time.clock()
+        for x,y in newDists:
+            distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
+        end = time.clock()
+        # print 'Recalculated '+str(len(newDists))+' pairs'
+        # print 'Recalculating took '+str(end-start)+' seconds'
+
+        return distancesD, groups, famGroupL, recalc
+    else:
+        return distancesD, groups, famGroupL, recalc
 
 
     
 def calcDist(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache):
     '''Compares the dupDel model and order cost of two groups'''
 
-    cost = 10
+    # cost = 10
 
     # mrcaCost = moveMRCAcost(tree, groupA.getMrcag(), groupB.getMrcag())
     if groupA.getMrcag() == groupB.getMrcag():
-        cost = groupCost(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache)
-    return ((cost))
+        return groupCost(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache)
+    else:
+        return [(10,0)]
 
 
 def initializeGroups(familyData):
@@ -970,7 +1096,7 @@ def otherEnd(group,fam,leaf,FamSpAdjD):
             if (group[-1],leaf) in FamSpAdjD:
                 return group[-1]
             else:
-                return otherEnd(group[:-2],fam,leaf,FamSpAdjD)
+                return otherEnd(group[:-1],fam,leaf,FamSpAdjD)
         else:
             if (group[0],leaf) in FamSpAdjD:
                 return group[0]

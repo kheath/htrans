@@ -14,13 +14,25 @@ from collections import Counter
 class Group:
 
     def __init__(self, family, idnum, numSpecies):
+        self.id = idnum
         self.mrcag = family[0]
         self.families = [idnum]            # Need to retain order
         self.numSpecies = numSpecies
-        self.id = idnum
+        
 
         self.front = idnum
         self.back = idnum
+
+    def __str__(self):
+        return [self.id, self.mrcag, self.families, self.numSpecies, self.front, self.back]
+
+    def readIn(self, params):
+        self.id = params[0]
+        self.mrcag = params[1]
+        self.families = params[2]
+        self.id = params[3]
+        self.id = params[4]
+        self.id = params[5]
 
 
     def getSize(self):
