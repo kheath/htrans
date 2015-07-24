@@ -888,15 +888,26 @@ def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,
             repB=representative(groupBFam,tree[0],pair[1],FamSpAdjD)
             adjFList=FamSpAdjD[(repA,tree[0])]
             
-            rAdjFList=[]
+            rAdjFList=[] # might have called this originallyAdjacent
+                         # or something like that. Its intended to be
+                         # a list for things we figure out were really
+                         # next to repA, but have been interrupted by
+                         # later htrans events etc.
             
             for adjF in adjFList:
                 currentGroupID=famGroupD[adjF]
                 
-                currentGroup=groupL[currentGroupID]
+                currentGroup=groupL[currentGroupID] # a potentially intervening group
                 currentHtrans=currentGroup.getMrcag()
-                
-                if lowerThanOrigin(subtree(originHtrans,originTree),originHtrans,currentHtrans) == True:
+
+                # Its possible that a later horizontal transfer event
+                # might have interrupted a pre-existing group (the
+                # group we want to merge here). We could recognize
+                # this if the intervening, unrelated group has an
+                # mrcag lower in the tree than the groups we're
+                # considering. (we just check groupA here).
+
+                if lowerThanOrigin(subtree(originHtrans,originTree),originHtrans,currentHtrans):
                     # print "!",adjF,tree[0]
                     otherEndFam=otherEnd(currentGroup.getFamilies(),adjF,tree[0],FamSpAdjD)
                     
@@ -916,7 +927,15 @@ def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,
     else: #General case: At a subtree:
 
         leftLeaves = leafCache[tree[1]] #leafList(tree[1])
-        options = []
+
+        # We're imagining different order change events on this
+        # branch. options represents the possibilities we'll
+        # consider. Of course, it only makes sense to try orderchange
+        # events putting pair[0] next to things it actually occurs
+        # next to in the data for the tips. (also we'll only consider
+        # things in group b)
+
+        options = [] 
         for leaf in leftLeaves:
             if (pair[0],leaf) in FamSpAdjD:
                 adjacentFam=FamSpAdjD[(pair[0],leaf)]
@@ -963,6 +982,7 @@ def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,
     return minLeftCost+minRightCost
 
 def otherEnd(group,fam,leaf,FamSpAdjD):
+    '''Go to the other end of an intervening group.'''
     if len(group)==1:
         return group[0]
     else:
@@ -989,6 +1009,7 @@ def lowerThanOrigin(Tree,originNode,currentNode):
         
 
 def remainFam(group,leaf,FamSpAdjD):
+    '''Returns a list of the families in group which have not been deleted.'''
     result=[]
     for fam in group:
         if (fam,leaf) in FamSpAdjD:
@@ -996,6 +1017,12 @@ def remainFam(group,leaf,FamSpAdjD):
     return result
                 
 def representative(group,leaf,fam,FamSpAdjD):
+    '''In trying to merge this group, we've specified one family which
+will be merged with another group. That is given in the fam argument
+here. If that family is not deleted, we're fine and we just return
+that. If the family is deleted, we need to determine which family
+should act as its surrogate, based on adjacency.
+    '''
     if (fam,leaf) in FamSpAdjD:
         return fam
     else:
