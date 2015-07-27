@@ -30,10 +30,12 @@ class Group:
         self.id = params[0]
         self.mrcag = params[1]
         self.families = params[2]
-        self.id = params[3]
-        self.id = params[4]
-        self.id = params[5]
+        self.numSpecies = params[3]
+        self.front = params[4]
+        self.back = params[5]
 
+    def printG(self):
+        return str(self.id)+str('\t')+str(self.mrcag)+str('\t')+str(self.families)+str('\t')+str(self.numSpecies)+str('\t')+str(self.front)+str('\t')+str(self.back)
 
     def getSize(self):
         return len(self.families)

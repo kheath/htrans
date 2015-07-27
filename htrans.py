@@ -85,10 +85,10 @@ def main(argv):
         print 'Reading the pickle took '+str(end-start)+' seconds.'
     except:
         print 'Calculating distances for the first time.'
-        start = time.clock()
+        # start = time.clock()
         distancesDict = initializeMagicalMatrix(groupsD, tree, famSpAdjD, famGroupL, leafCache)
-        end = time.clock()
-        print 'Distances #1 done in '+str(end-start)+' seconds'
+        # end = time.clock()
+        print 'Initializing distances done'
         print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
         try:
             writePickle(distancesDict, 'initialDistances.pickle')
@@ -116,8 +116,9 @@ def main(argv):
     #     if temp <= 1:
     #         mergeMore = False
     #     count+=1
+    print 'Starting with '+str(len(groupsD))+' groups.'
 
-    distancesDict, groupsD, famGroupL, temp = mergeWrapper(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache, 400, 10000)
+    distancesDict, groupsD, famGroupL, temp = mergeWrapper(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache, 200, 10000)
     print 'Merged '+str(temp)+' times.'
     print 'There are '+str(numGroups(groupsD))+' remaining \n'
     print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
@@ -125,7 +126,10 @@ def main(argv):
 
     with open('groupsL.txt', 'w+') as f:
         for group in groupsD:
-            f.write(str(group.getIdNum())+'\t'+str(group.getMrcag())+'\t'+str(group.getFamilies())+'\n')
+            if group == None:
+                f.write('None\n')
+            else:
+                f.write(group.printG()+'\n')
 
 
     # print 'Making heatmaps'
@@ -153,6 +157,15 @@ def main(argv):
     #     plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
         # plt.clf()
  
+def numDists(distances, cutoff):
+    '''Returns the number of elements in a distance dictionary that are less than or equal to the cut off'''
+    count = 0
+    for value in distances.itervalues():
+        if value[0][0] <= cutoff:
+            count+=1
+    return count
+
+
 
 def numGroups(groups):
     '''Returns the number of groups that are not None'''
@@ -691,6 +704,7 @@ def initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache):
     progress = 0
     part = 0
     print 'Updates every '+str(oneP)+' calculations.'
+    start = time.clock()
     for x in range(1, len(groups)):
         for y in range(x+1, len(groups)):
             if groups[x] != None and groups[y] != None:
@@ -701,6 +715,8 @@ def initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache):
                 print str(part)+'%'
                 # sys.stdout.write(str(part)+'%...')
                 progress = 0
+    end = time.clock()
+    print 'Initializing matrix took '+str(end-start)+' seconds'
 
     return distancesD
 
@@ -758,6 +774,13 @@ def mergeWrapper(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroup
         count += 1
         count2 += 1
         if iterations == itsPerRecalc:
+            print 'Writing out groups'
+            with open('groupsL.txt', 'w+') as f:
+                for group in groups:
+                    if group == None:
+                        f.write('None\n')
+                    else:
+                        f.write(group.printG()+'\n')
             iterations = 0
             print 'Recalculating the full matrix'
             distancesD = initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache)
@@ -797,8 +820,9 @@ def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGrou
                     if groups[x] != None and groups[y] != None:
                         print 'Merging groups '+str(x)+' and '+str(y)
                         groups[x].mergeGroup(groups[y], distancesD[(x,y)][0][1])
+                        for familyNum in groups[y].getFamilies():
+                            famGroupL[familyNum] = x
                         groups[y] = None
-                        famGroupL[y] = x
                         reX = x
                         reY = y
                         recalc = True
@@ -817,16 +841,16 @@ def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGrou
         #         delDists.append((x,y))
         #     elif x == reX and groups[y] != None:
         #         newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
-        start = time.clock()
+        # start = time.clock()
         for key in delDists:
             del distancesD[key]
-        end = time.clock()
+        # end = time.clock()
         # print 'Deleting keys took '+str(end-start)+' seconds'
 
-        start = time.clock()
+        # start = time.clock()
         for x,y in newDists:
             distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
-        end = time.clock()
+        # end = time.clock()
         # print 'Recalculated '+str(len(newDists))+' pairs'
         # print 'Recalculating took '+str(end-start)+' seconds'
 
@@ -837,15 +861,15 @@ def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGrou
 
     
 def calcDist(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache):
-    '''Compares the dupDel model and order cost of two groups'''
+    '''Compares the prairOrder cost of two groups'''
 
-    # cost = 10
+    defaultCost = float('inf')
 
     # mrcaCost = moveMRCAcost(tree, groupA.getMrcag(), groupB.getMrcag())
-    if groupA.getMrcag() == groupB.getMrcag():
+    if groupA.getMrcag() == groupB.getMrcag() and groupA.getMrcag() != tree[0]:
         return groupCost(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache)
     else:
-        return [(10,0)]
+        return [(defaultCost,0)]
 
 
 def initializeGroups(familyData):
