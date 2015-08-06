@@ -16,7 +16,7 @@ from os import path
 from functools import wraps
 import numpy as np
 import matplotlib as mpl
-mpl.use('Agg')
+# mpl.use('Agg')
 import matplotlib.pyplot as plt
 import resource
 import gc
@@ -66,7 +66,7 @@ def main(argv):
     print 'Making groups'
 
     familyData = dupDelResults #readFamilies('dupDelSmall.txt') # Only use the first half of families
-    groupsD = initializeGroups(familyData)  
+    groupsD = initializeGroups(familyData, len(species))  
     famGroupL = setFamGroupDict(groupsD)
     # tree = readTree('testATree')
     famSpAdjD = GFSdict(famD, gsMap, speciesDict(args.o, species), geneNums, adjInfo)
@@ -124,12 +124,7 @@ def main(argv):
     print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
     # matricies.append(distancesDict)
 
-    with open('groupsL.txt', 'w+') as f:
-        for group in groupsD:
-            if group == None:
-                f.write('None\n')
-            else:
-                f.write(group.printG()+'\n')
+    writeGroups('groupsL.txt', groupsD)
 
 
     # print 'Making heatmaps'
@@ -157,6 +152,45 @@ def main(argv):
     #     plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
         # plt.clf()
  
+def readGroupsOld(infile):
+    groups = []
+    with open(infile, 'r') as handle:
+        while True:
+            line = handle.readline().rstrip()
+            if not line:
+                break
+            if line == 'None':
+                groups.append(None)
+            else:
+                params = line.split('\t')
+                groups.append(Group.withList(map(ast.literal_eval, params)))
+    return groups
+
+def readGroups(infile):
+    groups = []
+    with open(infile, 'r') as handle:
+        while True:
+            line = handle.readline().rstrip()
+            if not line:
+                break
+            if line == 'None':
+                groups.append(None)
+            else:
+                groups.append(Group.withList(ast.literal_eval(line)))
+    return groups
+
+def writeGroups(outfile, groups):
+    '''Writes groups to a file using the str representation'''
+
+    with open(outfile, 'w+') as f:
+        for group in groups:
+            if group == None:
+                f.write('None\n')
+            else:
+                f.write(str(group)+'\n')
+
+
+
 def numDists(distances, cutoff):
     '''Returns the number of elements in a distance dictionary that are less than or equal to the cut off'''
     count = 0
@@ -164,7 +198,6 @@ def numDists(distances, cutoff):
         if value[0][0] <= cutoff:
             count+=1
     return count
-
 
 
 def numGroups(groups):
@@ -757,7 +790,7 @@ def mergeWrapper(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroup
     '''Wrapper function for mergeOneByOne.
     Takes care of repeated iterations and recalculating the full matrix every so often.
     '''
-
+    begin = time.clock()
     mergeMore = True
     iterations = 0
     count = 0
@@ -768,7 +801,8 @@ def mergeWrapper(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroup
         start = time.clock()
         distancesD, groups, famGroupL, mergeMore = mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache)
         end = time.clock()
-        print 'Merge '+str(count)+' took '+str(end-start)+'seconds.\n'
+        print 'Merge '+str(count)+' took '+str(end-start)+'seconds.'
+        print 'Running for '+str((time.clock()-begin)/60.0) + ' minutes.\n'
 
         iterations += 1
         count += 1
@@ -802,58 +836,38 @@ def mergeWrapper(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroup
 
 def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache):
     '''Merge two groups greedy style, then recalculate'''
-    # numG = numGroups(groups)
-    # recalc = True
-    # while recalc:
     reX = 0
     reY = 0
     recalc = False
-    start = time.clock()
-    for x in range(1, len(groups)):
-        if recalc == True:
-            break
-        for y in range(x+1, len(groups)):
-            if recalc == True:
-                break
-            if (x,y) in distancesD:
-                if distancesD[(x,y)][0][0] <= dCutoff and distancesD[(x,y)][0][0] <= oCutoff:
-                    if groups[x] != None and groups[y] != None:
-                        print 'Merging groups '+str(x)+' and '+str(y)
-                        groups[x].mergeGroup(groups[y], distancesD[(x,y)][0][1])
-                        for familyNum in groups[y].getFamilies():
-                            famGroupL[familyNum] = x
-                        groups[y] = None
-                        reX = x
-                        reY = y
-                        recalc = True
 
+    start = time.clock()
+    for key, value in distancesD.iteritems():
+        if value[0][0] <= oCutoff:
+            x = key[0]
+            y = key[1]
+            print 'Merging groups '+str(x)+' and '+str(y)
+            groups[x].mergeGroup(groups[y], distancesD[(key[0],key[1])][0][1])
+            for familyNum in groups[y].getFamilies():
+                famGroupL[familyNum] = x
+            groups[y] = None
+            reX = x
+            reY = y
+            recalc = True
+            break
     end = time.clock()
     print 'Finding and merging took '+str(end-start)+' seconds'
 
     if recalc:
         print 'Recalculating...'
-        newDists = [(reX, y) for y in range(reX+1, len(famGroupL)) if y != reY and groups[y] != None]
-        # print 'newDists: '+str(newDists)
-        delDists = [(x, reY) for x in range(1, reY) if groups[x] != None]
-        # print 'delDists: '+str(delDists)
-        # for (x,y) in distancesD.iterkeys():
-        #     if y == reY:
-        #         delDists.append((x,y))
-        #     elif x == reX and groups[y] != None:
-        #         newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
-        # start = time.clock()
+        newDists = list(set([(reX, y) for y in xrange(reX+1, len(groups)) if y != reY and groups[y] != None]+[(x, reX) for x in xrange(1, reX) if groups[x] != None]))
+        delDists = list(set([(x, reY) for x in xrange(1, reY) if groups[x] != None]+[(reY, y) for y in xrange(reY+1,  len(groups)) if groups[y] != None]))
+        
         for key in delDists:
             del distancesD[key]
-        # end = time.clock()
-        # print 'Deleting keys took '+str(end-start)+' seconds'
-
-        # start = time.clock()
+        
         for x,y in newDists:
             distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
-        # end = time.clock()
-        # print 'Recalculated '+str(len(newDists))+' pairs'
-        # print 'Recalculating took '+str(end-start)+' seconds'
-
+        
         return distancesD, groups, famGroupL, recalc
     else:
         return distancesD, groups, famGroupL, recalc
@@ -872,14 +886,15 @@ def calcDist(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache):
         return [(defaultCost,0)]
 
 
-def initializeGroups(familyData):
+def initializeGroups(familyData, numSpecies):
     '''Make every family into a group.  Assumes the list of families starts with 'None'
     as the first element.'''
 
     groups = [None]
 
+    # index is both the group idNum and family number
     for index, value in enumerate(familyData[1:], 1):
-        groups.append(Group(value, index, 6))
+        groups.append(Group(index, value[0], [index], numSpecies, index, index))    #groups.append(Group(value, index, 6))
 
     return groups
 

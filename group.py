@@ -13,29 +13,26 @@ from collections import Counter
 
 class Group:
 
-    def __init__(self, family, idnum, numSpecies):
+    def __init__(self, idnum, mrcag, famNum, numSpecies, front, back):     #(self, family, idnum, numSpecies):
         self.id = idnum
-        self.mrcag = family[0]
-        self.families = [idnum]            # Need to retain order
+        self.mrcag = mrcag
+        self.families = famNum           # Should be a list
         self.numSpecies = numSpecies
-        
+        self.front = front
+        self.back = back
 
-        self.front = idnum
-        self.back = idnum
+    def __repr__(self):
+        return '['+str(self.id)+', '+str(self.mrcag)+', '+str(self.families)+', '+str(self.numSpecies)+', '+str(self.front)+', '+str(self.back)+']'
 
     def __str__(self):
-        return [self.id, self.mrcag, self.families, self.numSpecies, self.front, self.back]
+        return '['+str(self.id)+', '+str(self.mrcag)+', '+str(self.families)+', '+str(self.numSpecies)+', '+str(self.front)+', '+str(self.back)+']' 
 
-    def readIn(self, params):
-        self.id = params[0]
-        self.mrcag = params[1]
-        self.families = params[2]
-        self.numSpecies = params[3]
-        self.front = params[4]
-        self.back = params[5]
+    @classmethod
+    def withList(cls, params):
+        return cls(params[0], params[1], params[2], params[3], params[4], params[5])
 
-    def printG(self):
-        return str(self.id)+str('\t')+str(self.mrcag)+str('\t')+str(self.families)+str('\t')+str(self.numSpecies)+str('\t')+str(self.front)+str('\t')+str(self.back)
+    # def printG(self):
+    #     return str(self.id)+str('\t')+str(self.mrcag)+str('\t')+str(self.families)+str('\t')+str(self.numSpecies)+str('\t')+str(self.front)+str('\t')+str(self.back)
 
     def getSize(self):
         return len(self.families)
@@ -100,7 +97,7 @@ class Group:
         elif direction == 2:
             self.families = group.getFamilies()+self.families
             self.front = group.getFront()
-        elif directions == 3:
+        elif direction == 3:
             if len(group.getFamilies()) > 1:
                 self.families = self.families+list(reversed(group.getFamilies()))
             else:
