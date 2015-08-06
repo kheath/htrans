@@ -1,10 +1,22 @@
 '''
-Wrapper for htrans
+Author: Kevin Heath & Zunyan Wang
+Date: August 1, 2015
+
+Description:  Wrapper file for the htrans project.
+    This file every function required for the pipeline
+    after preprocessing.  This wrapper is not project
+    specific, but requires a large amount of preprocessed
+    data to work.  This will also run for a while, depending
+    on how many gene families you are analyzing.
+
+Example:  If you have the same files as me...(you probably don't)
+    python htrans.py -f fam.out -m geneSpeciesMap.txt -d dbList.txt -g geneOrder.txt 
+            -t testATree -b 3 -c 5 -s 6 -o orthologs.out &> htrans.out; echo "Process 
+            finished" | mail -s "Message" EmailAdress 
 '''
 
 import mrca, sys, io, ast, math, os, argparse, time
 from group import Group
-# from orderCost1 import *
 from operator import itemgetter
 from copy import deepcopy
 from collections import Counter
@@ -16,20 +28,19 @@ from os import path
 from functools import wraps
 import numpy as np
 import matplotlib as mpl
-# mpl.use('Agg')
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import resource
 import gc
 import cPickle as pickle
-# import matplotlib
 
 
 
 
 def main(argv):
-    # matplotlib.use()
-    plt.ioff()
-    # matplotlib.use('Agg')
+
+    plt.ioff()  # Turn off interactive mode for plots
+    
     ############## ---- Parse Command line Arguments ---- ################
     parser = argparse.ArgumentParser()
     requiredNamed = parser.add_argument_group('required named arguments')
@@ -43,7 +54,6 @@ def main(argv):
     requiredNamed.add_argument('-s', '--species', help='Number of species', type=int, required=True)
     requiredNamed.add_argument('-o', help='Orthologs files (orthologs.out)', required=True) 
     parser.add_argument('-n', help='Initial copy number of genes at the mrca', type=int, required=False, default=1)
-    
     args = parser.parse_args()
 
     ############## ---- processFamGenes ---- ################
@@ -57,6 +67,7 @@ def main(argv):
     adjInfo = adjacencyInfo(args.geneOrder, geneNums)   # Gene adjacency information
 
     ############## ---- dupDel ---- ################
+    # dupDel models currently not fully utilized.  This will probably change in further iterations.
     print 'Calculating dupDel models'
 
     tree = readTree(args.tree)                  # Phylogenetic tree
@@ -65,68 +76,50 @@ def main(argv):
     ############## ---- Group Cost ---- ################
     print 'Making groups'
 
-    familyData = dupDelResults #readFamilies('dupDelSmall.txt') # Only use the first half of families
-    groupsD = initializeGroups(familyData, len(species))  
-    famGroupL = setFamGroupDict(groupsD)
-    # tree = readTree('testATree')
-    famSpAdjD = GFSdict(famD, gsMap, speciesDict(args.o, species), geneNums, adjInfo)
-    leafCache = memoLeafList(tree, {})
+    familyData = dupDelResults # Make families based on dupDel results.  Really just needs a list of families with mrca info.
+    groupsList = initializeGroups(familyData, len(species))  # List of groups.
+    famGroupL = setFamGroupDict(groupsList)                  # List of Family # <-> Group #
+    
+    famSpAdjD = GFSdict(famD, gsMap, speciesDict(args.o, species), geneNums, adjInfo)   # Adjacency information
+    leafCache = memoLeafList(tree, {})  # Precaclate the leaves for each node in the tree. Saves a lot of recursive calls.
 
     print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
     ######### Distances Matrix ##########
-    # print 'Calculating distances'
+    print 'Calculating distances'
 
-    # matricies = []
     try:
+        # If htrans has generated the initial distances before, it will try to reuse them.  Delete or rename
+        # initialDistances.pickle to redo them.
+
         print 'Reading in distances from file'
         start = time.clock()
         distancesDict = readPickle('initialDistances.pickle')
         end = time.clock()
         print 'Reading the pickle took '+str(end-start)+' seconds.'
     except:
-        print 'Calculating distances for the first time.'
-        # start = time.clock()
-        distancesDict = initializeMagicalMatrix(groupsD, tree, famSpAdjD, famGroupL, leafCache)
-        # end = time.clock()
-        print 'Initializing distances done'
+        # If initial distances are not found, calculate them and save them to a file.
+        print 'No file found, calculating distances for the first time.'
+        distancesDict = initializeMagicalMatrix(groupsList, tree, famSpAdjD, famGroupL, leafCache)
+        print 'Finished initializing distances'
         print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
         try:
-            writePickle(distancesDict, 'initialDistances.pickle')
+            writePickle(distancesDict, 'initialDistances.pickle')   # Save as a compressed binary file
         except:
             print 'Failed to write distances to pickle.'
-    # print 'Memory usage: %s (kb)' % resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    # start = time.clock()
-    # distancesDict = readPickle('initialDistances.pickle')
-    # end = time.clock()
-    # print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
     
-    # matricies.append(distancesDict)
-    print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
-    # return True
     print 'Merging...'
-    # count = 1
-    # mergeMore = True
-    # while mergeMore and count < 4:
-    #     # famGroupL = setFamGroupDict()
-    #     print 'Merge #'+str(count)
-    #     distancesDict, groupsD, famGroupL, temp = mergeGroups(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache)
-    #     print 'Groups remaining = ', numGroups(groupsD)
-    #     # matricies.append(makeArray(distancesDict, len(famGroupL)))
-    #     matricies.append(distancesDict)
-    #     if temp <= 1:
-    #         mergeMore = False
-    #     count+=1
-    print 'Starting with '+str(len(groupsD))+' groups.'
+    print 'Starting with '+str(len(groupsList))+' groups.'
+    # Stringently merge all groups until no more groups can be merged, or we do 10000 merges.  Will add the limit as a
+    # command line argument in the future.
 
-    distancesDict, groupsD, famGroupL, temp = mergeWrapper(distancesDict, groupsD, 0, 0, tree, famSpAdjD, famGroupL, leafCache, 200, 10000)
+    distancesDict, groupsList, famGroupL, temp = mergeWrapper(distancesDict, groupsList, 0, 0, tree, famSpAdjD, famGroupL, leafCache, 200, 10000)
     print 'Merged '+str(temp)+' times.'
-    print 'There are '+str(numGroups(groupsD))+' remaining \n'
+    print 'There are '+str(numGroups(groupsList))+' remaining \n'
     print 'Memory usage: %s (mb)' % (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000)
-    # matricies.append(distancesDict)
 
-    writeGroups('groupsL.txt', groupsD)
+    writeGroups('groupsL.txt', groupsList)
 
-
+    # Code for making heatmaps of the groups.  Do not remove.
     # print 'Making heatmaps'
     # for index, matrixD in enumerate(matricies):
     #     print 'Heatmap #'+str(index)
@@ -152,21 +145,11 @@ def main(argv):
     #     plt.savefig('heatmap'+str(index)+'.png', bbox_inches='tight')
         # plt.clf()
  
-def readGroupsOld(infile):
-    groups = []
-    with open(infile, 'r') as handle:
-        while True:
-            line = handle.readline().rstrip()
-            if not line:
-                break
-            if line == 'None':
-                groups.append(None)
-            else:
-                params = line.split('\t')
-                groups.append(Group.withList(map(ast.literal_eval, params)))
-    return groups
+
+############## ---- General helper functions ---- ################
 
 def readGroups(infile):
+    '''Read groups from a file'''
     groups = []
     with open(infile, 'r') as handle:
         while True:
@@ -190,7 +173,6 @@ def writeGroups(outfile, groups):
                 f.write(str(group)+'\n')
 
 
-
 def numDists(distances, cutoff):
     '''Returns the number of elements in a distance dictionary that are less than or equal to the cut off'''
     count = 0
@@ -209,6 +191,7 @@ def numGroups(groups):
     return int(count)
 
 def makeArray(distancesD, size):
+    '''Make a numpy heatmap'''
     heat = np.zeros((size, size))
 
     for (x,y), value in distancesD.iteritems():
@@ -226,72 +209,23 @@ def writeDistances(dists, outfile):
     return True
 
 def writePickle(dists, outfile):
-    '''Write out dictionary as a json file'''
+    '''Write out dictionary as a compressed binary file'''
     with open(outfile, 'wb') as handle:
         pickle.dump(dists, handle, pickle.HIGHEST_PROTOCOL)
     return True
 
 def readPickle(infile):
-    '''Read in json file as dictionary'''
+    '''Read in compressed binary file as a dictionary'''
     with open(infile, 'rb') as handle:
         return pickle.load(handle)
-  
 
-def readDistances(infile):
-    '''Read in the distance matrix saved as a text file'''
-    distsD = {}
-    with open(infile, 'r') as f:
-        while True:
-            line = f.readline()
-            if not line:
-                break
-            ln = line.rstrip().split('\t')
-            distsD[ast.literal_eval(ln[0])] = ast.literal_eval(ln[1])
-
-    return distsD
-
-
-
-
-############## ---- geneSpecies Map -- IGNORE ---- ################
-def loadFasta(filename):
-    """Load fasta or multifasta, return list of tuples (header,seq)."""
-    with open(filename,'r') as f:
-        header=None
-        outL=[]
-        tempSeqL=[]
-        while True:
-            Str=f.readline()
-            if Str=="":
-                outSeq="".join(tempSeqL)
-                tempSeqL=[]
-                outSeq="".join(outSeq.split()) # remove all whitespace
-                outL.append((header,outSeq))
-                break
-            if Str[0]==">":
-                # this is new header, put together previous header,seq, and move one
-                if header!=None:
-                    outSeq="".join(tempSeqL)
-                    tempSeqL=[]
-                    outSeq="".join(outSeq.split()) # remove all whitespace
-                    outL.append((header,outSeq))
-                header=Str[:-1]
-            else:
-                # this is a seq line,
-                tempSeqL.append(Str)
-    return(outL)    
 
 def getFiles(directory, pattern):
     '''Given a directory, gets the files ending with the pattern'''
 
     files = filter(lambda x: x.endswith(pattern), os.listdir(directory))
-
     return [directory + s for s in files]
 
-    # broadFiles = filter(lambda x: x.endswith('.simp.faa'), os.listdir(broadDir))
-    # ncbiFiles = filter(lambda x: x.endswith('.simp.faa'), os.listdir(ncbiDir))
-
-    # return [broadDir + s for s in broadFiles] + [ncbiDir + t for t in ncbiFiles]
 
 def createGeneSpeciesMap(broadDir, ncbiDir):
     '''Read in protein file names and makes gene-species  and gene name <-> number maps'''
@@ -304,14 +238,6 @@ def createGeneSpeciesMap(broadDir, ncbiDir):
 
     for fileName in protFiles:
         species = fileName.split('/')[-1].split('.')[0]
-     # with open(protFile,'r') as f:
-     #    while True:
-     #        s=f.readline()
-     #        if not s:
-     #            break
-     #        s=s.rstrip('\n')
-     #        # L=s.rstrip().split('/')
-     #        species=s.rstrip().split('/')[-1].split('.')[0]
             
         strainInfo=loadFasta(fileName)
         for gene in strainInfo:
@@ -323,108 +249,6 @@ def createGeneSpeciesMap(broadDir, ncbiDir):
 
     return geneSpeciesMap, numbers
 
-############## ---- Gene Order -- IGNORE ---- ################
-'''
-ls seq/broad/*genome_summary_per_gene.txt > geneFilesBroadTemp.txt
-ls seq/broad/*simp.faa > protFilesBroadTemp.txt # needed for names
-ls seq/ncbi/*simp.faa > protFilesNCBITemp.txt # needed for names
-python code/extractGeneOrder.py geneFilesBroadTemp.txt protFilesBroadTemp.txt protFilesNCBITemp.txt > full/geneOrder.txt
-'''
-def extractGeneOrder(geneBroadDir,protBroadDir,NCBIDir):
-    
-    geneBroadFile = getFiles(geneBroadDir, 'genome_summary_per_gene.txt')
-    protBroadFile = getFiles(protBroadDir, 'simp.faa')
-    ncbiFile = getFiles(NCBIDir, 'simp.faa')    
-
-    f=open(geneBroadFile,'r')
-    q=open(protBroadFile,'r')
-
-    while True:
-        tempDict={} 
-        tempOrder=[]
-        allNames=[]
-        s=f.readline()
-        t=q.readline()
-        if s=='':
-            break
-        s=s.rstrip('\n')
-        L=s.rstrip().split('/')
-        k=L[2].rstrip('genome_summary_per_gene_.txt')
-        print k+'_',
-        t=t.rstrip('\n')
-        
-      
-        
-        
-        r=open(t,'r')
-        while True:
-            u=r.readline()
-            if u=='': break
-            if u[0]=='>':
-                u=u.split()[0][1:]
-                allNames.append(u)
-        
-        r.close()
-
-        g=open(s,'r')
-        h=g.readline()
-        while True:
-            h=g.readline()
-            if h=='':break
-            geneInfo=h.rstrip().split('\t')
-            if geneInfo[0] in allNames:
-                chromosomeNum=int(geneInfo[8])
-                if chromosomeNum in tempDict:
-                    tempDict[chromosomeNum].append((geneInfo[0],int(geneInfo[4])))
-                else:
-                    tempDict[chromosomeNum]=[(geneInfo[0],int(geneInfo[4]))]
-                    tempOrder.append(chromosomeNum)
-        for chromosome in tempOrder:
-            tempDictGene={}
-            tempOrderGene=[]
-            tempList=tempDict[chromosome]
-            for gene in tempList:
-                tempDictGene[gene[1]]=gene[0]
-                tempOrderGene.append(gene[1])
-            tempOrderGene=sorted(tempOrderGene)
-            for startLocation in tempOrderGene:
-                print tempDictGene[startLocation],
-            print '|||',
-        print
-    f.close()
-    
-    f=open(NCBIFile,'r')
-     
-    while True:
-        s=f.readline()
-        if s=='':
-            break
-        s=s.rstrip('\n')
-        L=s.rstrip().split('/')
-        k=L[2].split('.')[0]
-        print k,
-            
-        g=open(s,'r')
-        tempDict={} 
-        tempOrder=[]
-        while True:
-            h=g.readline()
-            if h=='':break
-            if h[0]=='>':
-                
-                j=h.split()[1]
-                j=j.split('-')[0]
-                if j[0]=='c':
-                    j=j[1:]
-                j=int(j)
-                name=h.split()[0][1:]
-                tempDict[j]=name
-                tempOrder.append(j)
-        tempOrder=sorted(tempOrder)
-        for startLocation in tempOrder:
-            print tempDict[startLocation],
-        print
-    return
 
 
 
@@ -484,7 +308,7 @@ def sortFamData(famData):
 ############## ---- processFamGenes ---- ################
 def famInfo(famGeneMap, gsMap, species):
     '''For each family, count the number of times the genes from each species occurs in the family.
-    Families index from 1, not sure why.'''
+    Families index from 1 curtesy of SiLiX.'''
     data = {}
     for family, genes in famGeneMap.iteritems():
         data[family] = [0]*len(species)
@@ -597,7 +421,9 @@ def readFamInfo(infile):
 
 
 def memoize(func):
-    '''Memo function for dupDel to avoid repeated calculations'''
+    '''Memo function to avoid repeated calculations.  Needs more
+        testing to determine how much time this saves.
+    '''
     cache = {}
     @ wraps(func)
     def wrap(*args):
@@ -673,6 +499,7 @@ def nodeList(Tree):
         return [Tree[0]]+nodeList(Tree[1])+nodeList(Tree[2])
 
 def leafList(Tree):
+    '''Find and return all the leaves in the given tree'''
     if Tree[1]==():
         return [Tree[0]]
     else:
@@ -709,7 +536,7 @@ def descendantFam(node,Tree,famT):
     return result
 
 def dupDelAll(tree, familyTuples, delCost, dupCost, currentcopynum):
-
+    '''Runs dupDel for every gne family'''
     results=[None]
     it = iter(familyTuples[1:])
     while True:
@@ -722,12 +549,13 @@ def dupDelAll(tree, familyTuples, delCost, dupCost, currentcopynum):
         results.append((mrcaF, dupDel(sub, fam, delCost, dupCost, currentcopynum)))
 
     return results
-############## ---- END ---- ################
 
 
 ############## ---- Group Cost ---- ################
 
 def initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache):
+    '''Generate a distances dictionary for pairwise group costs'''
+
     print 'Initializing distances matrix'
     numG = numGroups(groups)
     total = int((numG*(numG-1))/2)
@@ -738,8 +566,10 @@ def initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache):
     part = 0
     print 'Updates every '+str(oneP)+' calculations.'
     start = time.clock()
-    for x in range(1, len(groups)):
-        for y in range(x+1, len(groups)):
+
+    # Iterate over every group that isn't None
+    for x in xrange(1, len(groups)):
+        for y in xrange(x+1, len(groups)):
             if groups[x] != None and groups[y] != None:
                 distancesD[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
                 progress += 1
@@ -752,39 +582,6 @@ def initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache):
     print 'Initializing matrix took '+str(end-start)+' seconds'
 
     return distancesD
-
-def mergeGroups(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache):
-
-    # print 'Merging groups'
-    # print len(groups), ' total groups'
-
-    recalculate = []
-    for x in range(1, len(groups)):
-        for y in range(x+1, len(groups)):
-            if x not in recalculate and y not in recalculate and (x,y) in distancesD:
-                if distancesD[(x,y)][0][0] <= dCutoff and distancesD[(x,y)][0][0] <= oCutoff:
-                    if groups[x] != None and groups[y] != None:
-                        groups[x].mergeGroup(groups[y], distancesD[(x,y)][0][1])
-                        groups[y] = None
-                        famGroupL[y] = x
-                        recalculate.extend([x,y])
-
-    if len(recalculate) > int(len(distancesD)/3):
-        newDists = initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache)
-
-    else:
-        xss = recalculate[0::2]
-        yss = recalculate[1::2]
-
-        newDists = deepcopy(distancesD)
-        for (x,y) in distancesD.iterkeys():
-            if y in yss:
-                del newDists[(x,y)]
-            elif x in xss and groups[y] != None:
-                newDists[(x,y)] = calcDist(groups[x], groups[y], tree, famSpAdjD, famGroupL, groups, leafCache)
-
-
-    return newDists, groups, famGroupL, len(recalculate)/2
 
 def mergeWrapper(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache, itsPerRecalc, limit):
     '''Wrapper function for mergeOneByOne.
@@ -818,9 +615,7 @@ def mergeWrapper(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroup
             iterations = 0
             print 'Recalculating the full matrix'
             distancesD = initializeMagicalMatrix(groups, tree, famSpAdjD, famGroupL, leafCache)
-            # print 'Keeping track of the following for garbage collection: '
-            # print gc.get_objects()
-            # gc.collect()
+            
         if count2 == onePer:
             progress += 1
             print str(progress)+'%'
@@ -835,7 +630,9 @@ def mergeWrapper(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroup
 
 
 def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGroupL, leafCache):
-    '''Merge two groups greedy style, then recalculate'''
+    '''Merge two groups greedy style, then recalculate.  Since distancesD is a dictionary,
+       the order of groups it analyzes is psudo-random.  We consider this a feature.
+    '''
     reX = 0
     reY = 0
     recalc = False
@@ -875,7 +672,10 @@ def mergeOneByOne(distancesD, groups, dCutoff, oCutoff, tree, famSpAdjD, famGrou
 
     
 def calcDist(groupA, groupB, tree, famSpAdjD, famGroupL, groupD, leafCache):
-    '''Compares the prairOrder cost of two groups'''
+    '''Compares the pairOrderCost value of two groups.
+       Currently set up for stringent merging and only calculates
+       cost for groups with the same mrca.
+    '''
 
     defaultCost = float('inf')
 
@@ -1039,7 +839,8 @@ def GFSdict(famNumGeneMap, geneSpeciesDict, speciesDict, geneDict, adjInfo):
     return famSpAdjD
 
 def pairOrderCost(tree,originTree,cost,FamSpAdjD,famGroupD,groupL,groupA,groupB,pair,memo, leafCache):
-    '''groupA and groupB are actual groups'''
+    '''Calculates the cost of putting two groups together the mrca's genome'''
+
     originHtrans=groupA.getMrcag()
     groupAFam=groupA.getFamilies()
     groupBFam=groupB.getFamilies()
@@ -1226,6 +1027,7 @@ def subMoveMRCAcost(tree,commonMRCA,mrcaX):
     else:
         return 1+subMoveMRCAcost(tree,subtree(commonMRCA,tree)[2][0],mrcaX)
 
+############## ---- You made it! ---- ################
 
 if __name__ == "__main__":
    main(sys.argv)
