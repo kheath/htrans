@@ -10,12 +10,13 @@ Description:  Wrapper file for the htrans project.
     on how many gene families you are analyzing.
 
 Example:  If you have the same files as me...(you probably don't)
+    and want to receive a notification:
     python htrans.py -f fam.out -m geneSpeciesMap.txt -d dbList.txt -g geneOrder.txt 
             -t testATree -b 3 -c 5 -s 6 -o orthologs.out &> htrans.out; echo "Process 
-            finished" | mail -s "Message" EmailAdress 
+            finished" | mail -s "Message" EmailAdress
 '''
 
-import mrca, sys, io, ast, math, os, argparse, time
+import sys, io, ast, math, os, argparse, time
 from group import Group
 from operator import itemgetter
 from copy import deepcopy
