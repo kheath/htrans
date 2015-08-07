@@ -1,0 +1,71 @@
+from htrans import *
+gsMap, geneNums = readGeneSpeciesMap('geneSpeciesMap.txt')
+species = readSpecies('dbList.txt')
+famD = sortFamData('fam.out')
+famData = famInfo(famD, gsMap, species)
+adjInfo = adjacencyInfo('geneOrder.txt', geneNums)
+tree = readTree('testATree')
+dupDelResults= dupDelAll(tree, famData, 3, 5, 1)
+familyData = dupDelResults
+groupsD = initializeGroups(familyData)
+famGroupL = setFamGroupDict(groupsD)
+famSpAdjD = GFSdict(famD, gsMap, speciesDict('orthologs.out', species), geneNums, adjInfo)
+leafCache = memoLeafList(tree, {})
+
+4357, 4359
+
+sameMrca = []
+
+for x in range(1, len(groupsD)):
+    for y in range(x+1, len(groupsD)):
+        if groupsD[x].getMrcag() == groupsD[y].getMrcag():
+            sameMrca.append((x,y))
+
+# Histograms
+
+from htransv2 import *
+
+groupsL = readGroups('groupsL.txt')
+mrcagDat = []
+famDat = []
+countedGroups = defaultdict(list)
+nodeGroups = defaultdict(list)
+oneFGroups = 0
+acidIsl = None
+for group in groupsL:
+    if group != None:
+        mrcagDat.append(group.getMrcag())
+        nodeGroups[group.getMrcag()].append(group)
+        numFams = len(group.getFamilies())
+        countedGroups[numFams].append(group)
+        famDat.append(numFams)
+        if 1221 in group.getFamilies():
+            print group.getIdNum(), numFams
+            acidIsl = group.getIdNum()
+
+for group in countedGroups[3]:
+    if 1221 in group.getFamilies():
+        print group
+
+for key, value in nodeGroups.iteritems():
+    print str(key)+': '+str(len(value))
+mergeCount = 0
+for key, value in countedGroups.iteritems():
+    if key > 1:
+        mergeCount += len(value)
+
+for key, value in countedGroups.iteritems():
+    print key, len(value)
+
+del countedGroups[0]
+with open('countedGroups.txt', 'w+') as f:
+    for key, value in countedGroups.iteritems():
+        f.write(str(key)+'\t'+str(len(value))+'\n')
+
+data = famDat
+fig, ax = plt.subplots()
+counts, bins, patches = ax.hist(data, facecolor='blue')
+# ax.set_xticks(bins)
+plt.subplots_adjust(bottom=0.15)
+plt.show()
+
