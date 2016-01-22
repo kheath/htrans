@@ -19,7 +19,7 @@ def readEvents(infile):
     '''Read events from ALF log file'''
     lgtList = []
     with open(infile, 'r') as handle:
-        for line in islice(handle, 12, None):
+        for line in islice(handle, 13, None):
             words = line.translate(string.maketrans("",""), string.punctuation)
             info = words.rstrip().split()
             if not info:
